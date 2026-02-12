@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# Build
+dist/
+build/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Google service account key — NEVER commit this
+backend/config/google-service-account.json
+
+# Razorpay webhook secret backups
+*.secret
+
+# MongoDB dumps
+dumps/
