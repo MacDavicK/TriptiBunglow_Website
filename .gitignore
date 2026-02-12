@@ -41,3 +41,11 @@ backend/config/google-service-account.json
 
 # MongoDB dumps
 dumps/
+
+# AI tool config (keep local, not in repo)
+CLAUDE.md
+backend/CLAUDE.md
+.cursorrules
+frontend/.cursorrules
+PROMPT_CLAUDE_CODE_BACKEND.md
+PROMPT_CURSOR_FRONTEND.md
