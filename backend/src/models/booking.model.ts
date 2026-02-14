@@ -24,6 +24,15 @@ export interface IBooking extends Document {
   reasonForRenting: string;
   termsAcceptedAt: Date;
   termsVersion: string;
+  additionalGuests: Array<{
+    name: string;
+    aadhaarNumber: string;
+    aadhaarDocumentUrl?: string;
+  }>;
+  upiReference?: string;
+  paymentScreenshotUrl?: string;
+  paymentConfirmedAt?: Date;
+  paymentConfirmedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +60,15 @@ const bookingSchema = new Schema<IBooking>(
     reasonForRenting: { type: String, required: true, trim: true },
     termsAcceptedAt: { type: Date, required: true },
     termsVersion: { type: String, required: true, default: '1.0' },
+    additionalGuests: [{
+      name: { type: String, required: true, trim: true },
+      aadhaarNumber: { type: String, required: true },
+      aadhaarDocumentUrl: { type: String },
+    }],
+    upiReference: { type: String, trim: true },
+    paymentScreenshotUrl: { type: String },
+    paymentConfirmedAt: { type: Date },
+    paymentConfirmedBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
   },
   { timestamps: true }
 );

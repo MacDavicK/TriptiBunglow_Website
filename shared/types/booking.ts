@@ -1,5 +1,6 @@
 export type BookingStatus =
   | 'hold'
+  | 'pending_payment'
   | 'pending_approval'
   | 'confirmed'
   | 'checked_in'
@@ -32,11 +33,29 @@ export interface Booking {
   reasonForRenting: string;
   termsAcceptedAt: string;
   termsVersion: string;
+  additionalGuests: AdditionalGuest[];
+  upiReference?: string;
+  paymentScreenshotUrl?: string;
+  paymentConfirmedAt?: string;     // ISO 8601
+  paymentConfirmedBy?: string;     // Admin user ID
   createdAt: string;
   updatedAt: string;
 }
 
-/** Frontend → Backend: create a new booking */
+export interface AdditionalGuest {
+  name: string;
+  aadhaarNumber: string;         // Encrypted at rest
+  aadhaarDocumentUrl?: string;   // Cloudinary URL
+}
+
+/** Additional guest (min 1 required; Aadhaar-only flow) */
+export interface AdditionalGuestRequest {
+  name: string;
+  aadhaarNumber: string;
+  aadhaarDocumentUrl?: string;
+}
+
+/** Frontend → Backend: create a new booking (UPI + Aadhaar-only) */
 export interface CreateBookingRequest {
   propertyIds: string[];
   checkIn: string;            // ISO date string "2026-03-15"
@@ -47,17 +66,18 @@ export interface CreateBookingRequest {
   reasonForRenting: string;
   termsAcceptedAt: string;
   termsVersion: string;
+  additionalGuests: AdditionalGuestRequest[];
+  upiReference?: string;
+  paymentScreenshotUrl?: string;
   customer: {
     name: string;
     email: string;
     phone: string;
     address: string;
     nationality: 'indian' | 'foreign';
-    idType?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id';
-    idNumber?: string;
-    panNumber?: string;
-    aadhaarDocumentUrl?: string;
-    panDocumentUrl?: string;
+    idType: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id';
+    idNumber: string;
+    aadhaarDocumentUrl: string;
   };
   consent: {
     consentVersion: string;

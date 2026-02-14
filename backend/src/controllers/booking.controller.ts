@@ -10,6 +10,8 @@ import { RATE_PER_NIGHT, SECURITY_DEPOSIT } from '../utils/constants';
 import { createDateHolds, releaseDateHolds } from '../services/availability.service';
 import { encrypt } from '../services/encryption.service';
 import { logAudit } from '../services/audit.service';
+import { sendBookingPendingEmail, sendAdminNewBookingAlert } from '../services/notification.service';
+import { logger } from '../utils/logger';
 
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const {
@@ -24,6 +26,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     reasonForRenting,
     termsAcceptedAt,
     termsVersion,
+    additionalGuests,
+    upiReference,
+    paymentScreenshotUrl,
   } = req.body;
 
   // Validate properties exist
@@ -45,15 +50,20 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const totalCharged = RATE_PER_NIGHT * nights * propertyIds.length + SECURITY_DEPOSIT;
   const depositAmount = SECURITY_DEPOSIT;
 
-  // Encrypt sensitive fields if provided
+  // Encrypt primary guest's Aadhaar number
   let encryptedIdNumber: string | undefined;
   if (customerData.idNumber) {
     encryptedIdNumber = encrypt(customerData.idNumber);
   }
-  let encryptedPanNumber: string | undefined;
-  if (customerData.panNumber) {
-    encryptedPanNumber = encrypt(customerData.panNumber);
-  }
+
+  // Encrypt each additional guest's Aadhaar number
+  const encryptedAdditionalGuests = additionalGuests.map(
+    (guest: { name: string; aadhaarNumber: string; aadhaarDocumentUrl?: string }) => ({
+      name: guest.name,
+      aadhaarNumber: encrypt(guest.aadhaarNumber),
+      aadhaarDocumentUrl: guest.aadhaarDocumentUrl,
+    })
+  );
 
   // Create customer
   const dataRetentionExpiresAt = new Date();
@@ -67,9 +77,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     nationality: customerData.nationality,
     idType: customerData.idType,
     idNumber: encryptedIdNumber,
-    panNumber: encryptedPanNumber,
     aadhaarDocumentUrl: customerData.aadhaarDocumentUrl,
-    panDocumentUrl: customerData.panDocumentUrl,
     dataRetentionExpiresAt,
   });
 
@@ -84,7 +92,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   });
 
   // Determine initial status based on booking type
-  const initialStatus = bookingType === 'standard' ? 'hold' : 'pending_approval';
+  // Standard bookings → pending_payment (await manual UPI confirmation)
+  // Special bookings → pending_approval (admin must approve first, then pending_payment)
+  const initialStatus = bookingType === 'standard' ? 'pending_payment' : 'pending_approval';
 
   // Create booking
   const booking = await Booking.create({
@@ -103,6 +113,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     reasonForRenting,
     termsAcceptedAt: new Date(termsAcceptedAt),
     termsVersion,
+    additionalGuests: encryptedAdditionalGuests,
+    upiReference,
+    paymentScreenshotUrl,
   });
 
   // Create date holds (prevents double-booking via unique constraint)
@@ -125,6 +138,33 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     'customer',
     { bookingType, nights, propertyCount: propertyIds.length }
   );
+
+  // Fire-and-forget: send pending email to customer
+  const propertyNames = properties.map((p: any) => p.name);
+
+  sendBookingPendingEmail({
+    bookingId: booking.bookingId,
+    customerName: customerData.name,
+    customerEmail: customerData.email,
+  }).catch((err) => logger.error({ err }, 'Failed to send pending email to customer'));
+
+  // Fire-and-forget: send admin alert with full booking details
+  sendAdminNewBookingAlert({
+    bookingId: booking.bookingId,
+    customerName: customerData.name,
+    customerEmail: customerData.email,
+    customerPhone: customerData.phone,
+    propertyNames,
+    checkIn: checkInDate,
+    checkOut: checkOutDate,
+    nights,
+    guestCount,
+    reasonForRenting,
+    bookingType,
+    specialRequests,
+    totalCharged,
+    depositAmount,
+  }).catch((err) => logger.error({ err }, 'Failed to send admin alert email'));
 
   res.status(201).json({
     success: true,

@@ -10,10 +10,12 @@ const ACCEPT_IMAGE = 'image/jpeg,image/png,image/webp';
 
 export interface DocumentUploadProps {
   label: string;
-  documentType: 'aadhaar' | 'pan';
+  documentType: 'aadhaar' | 'payment_screenshot';
   onUploadComplete: (url: string) => void;
   error?: string;
   existingUrl?: string;
+  /** Optional helper text shown below the label */
+  helperText?: string;
 }
 
 export function DocumentUpload({
@@ -22,6 +24,7 @@ export function DocumentUpload({
   onUploadComplete,
   error,
   existingUrl,
+  helperText,
 }: DocumentUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +81,9 @@ export function DocumentUpload({
   return (
     <div className="w-full">
       <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      {helperText && (
+        <p className="mb-2 text-xs text-gray-500">{helperText}</p>
+      )}
       <input
         ref={fileInputRef}
         type="file"

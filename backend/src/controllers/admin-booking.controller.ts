@@ -5,7 +5,9 @@ import { catchAsync } from '../utils/catch-async';
 import { AppError } from '../utils/app-error';
 import { logAudit } from '../services/audit.service';
 import { releaseDateHolds } from '../services/availability.service';
-import * as paymentService from '../services/payment.service';
+import { sendBookingConfirmation } from '../services/notification.service';
+import * as calendarService from '../services/calendar.service';
+import { logger } from '../utils/logger';
 
 export const listBookings = catchAsync(async (req: Request, res: Response) => {
   const page = req.query.page as string | undefined;
@@ -82,6 +84,10 @@ export const getBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * PATCH /api/admin/bookings/:id/approve
+ * Special bookings: pending_approval → pending_payment (admin approved, await UPI confirmation)
+ */
 export const approveBooking = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
@@ -98,11 +104,11 @@ export const approveBooking = catchAsync(async (req: Request, res: Response) => 
     );
   }
 
-  booking.status = 'confirmed';
+  booking.status = 'pending_payment';
   await booking.save();
 
   await logAudit(
-    'booking.approved',
+    'booking.approved_pending_payment',
     'Booking',
     booking._id,
     req.adminId || 'unknown',
@@ -148,6 +154,70 @@ export const rejectBooking = catchAsync(async (req: Request, res: Response) => {
   res.json({
     success: true,
     data: booking,
+  });
+});
+
+/**
+ * PATCH /api/admin/bookings/:id/confirm-payment
+ * Admin confirms UPI payment received: pending_payment → confirmed
+ * Fires calendar event creation + confirmation email.
+ */
+export const confirmPayment = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid booking ID', 400, 'INVALID_ID');
+  }
+
+  const booking = await Booking.findById(id)
+    .populate('customerId')
+    .populate('propertyIds');
+
+  if (!booking) {
+    throw new AppError('Booking not found', 404, 'BOOKING_NOT_FOUND');
+  }
+
+  if (booking.status !== 'pending_payment') {
+    throw new AppError(
+      `Cannot confirm payment for booking with status "${booking.status}". Must be pending_payment.`,
+      400,
+      'INVALID_STATUS_TRANSITION'
+    );
+  }
+
+  booking.status = 'confirmed';
+  booking.paymentConfirmedAt = new Date();
+  booking.paymentConfirmedBy = new mongoose.Types.ObjectId(req.adminId || 'unknown');
+  await booking.save();
+
+  await logAudit(
+    'booking.payment_confirmed',
+    'Booking',
+    booking._id,
+    req.adminId || 'unknown',
+    { previousStatus: 'pending_payment' }
+  );
+
+  // Fire-and-forget: create Google Calendar event
+  const populatedBooking = booking as any;
+  calendarService.createCalendarEvent(populatedBooking).catch((err) => {
+    logger.error({ err, bookingId: booking.bookingId }, 'Failed to create calendar event (non-blocking)');
+  });
+
+  // Fire-and-forget: send confirmation email to customer
+  if (populatedBooking.customerId) {
+    sendBookingConfirmation(populatedBooking, populatedBooking.customerId).catch((err) => {
+      logger.error({ err, bookingId: booking.bookingId }, 'Failed to send confirmation email (non-blocking)');
+    });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      bookingId: booking.bookingId,
+      status: booking.status,
+      paymentConfirmedAt: booking.paymentConfirmedAt,
+    },
   });
 });
 
@@ -219,7 +289,8 @@ export const checkOut = catchAsync(async (req: Request, res: Response) => {
 
 /**
  * POST /api/admin/bookings/:id/refund
- * Process deposit refund for a checked-out booking.
+ * Manual refund tracking (Razorpay disabled — owner handles UPI refund manually).
+ * Records refund amount, method, and reason in audit log.
  */
 export const processRefund = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id as string;
@@ -241,23 +312,15 @@ export const processRefund = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  if (!booking.razorpayPaymentId) {
-    throw new AppError('No payment found for this booking', 400, 'NO_PAYMENT');
-  }
+  const refundAmount = (req.body.refundAmount as number) ?? booking.depositRefundAmount ?? booking.depositAmount;
+  const refundMethod = (req.body.refundMethod as string) || 'upi';
+  const reason = (req.body.reason as string) || 'Security deposit refund';
 
-  const refundAmount = booking.depositRefundAmount ?? booking.depositAmount;
   if (refundAmount <= 0) {
     throw new AppError('No refund amount to process', 400, 'NO_REFUND_AMOUNT');
   }
 
-  const reason = (req.body.reason as string) || 'Security deposit refund';
-
-  const refundResult = await paymentService.processRefund(
-    booking.razorpayPaymentId,
-    refundAmount,
-    reason
-  );
-
+  booking.depositRefundAmount = refundAmount;
   booking.status = 'refunded';
   await booking.save();
 
@@ -266,7 +329,7 @@ export const processRefund = catchAsync(async (req: Request, res: Response) => {
     'Booking',
     booking._id,
     req.adminId || 'unknown',
-    { refundId: refundResult.refundId, amount: refundAmount, reason }
+    { amount: refundAmount, method: refundMethod, reason }
   );
 
   res.json({
@@ -274,7 +337,11 @@ export const processRefund = catchAsync(async (req: Request, res: Response) => {
     data: {
       bookingId: booking.bookingId,
       status: booking.status,
-      refund: refundResult,
+      refund: {
+        amount: refundAmount,
+        method: refundMethod,
+        reason,
+      },
     },
   });
 });

@@ -14,6 +14,7 @@ import { adminRoutes } from './routes/admin.routes';
 import { customerRoutes } from './routes/customer.routes';
 import { uploadRoutes } from './routes/upload.routes';
 import { termsRoutes } from './routes/terms.routes';
+import { paymentInfoRoutes } from './routes/payment-info.routes';
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api', publicRoutes);
 app.use('/api', termsRoutes);
+app.use('/api', paymentInfoRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);

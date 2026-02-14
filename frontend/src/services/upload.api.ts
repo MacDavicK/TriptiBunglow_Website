@@ -6,7 +6,7 @@ export const ACCEPTED_TYPES = '.jpg,.jpeg,.png,.webp,.pdf';
 
 export async function uploadDocument(
   file: File,
-  type: 'aadhaar' | 'pan'
+  type: 'aadhaar' | 'payment_screenshot'
 ): Promise<{ url: string; publicId: string }> {
   const formData = new FormData();
   formData.append('document', file);

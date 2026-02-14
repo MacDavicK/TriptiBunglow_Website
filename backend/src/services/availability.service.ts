@@ -108,7 +108,7 @@ export const getMonthAvailability = async (
 
   const confirmedBookings = await Booking.find({
     propertyIds: new Types.ObjectId(propertyId),
-    status: { $in: ['confirmed', 'checked_in'] },
+    status: { $in: ['pending_payment', 'confirmed', 'checked_in'] },
     checkIn: { $lt: endDate },
     checkOut: { $gt: startDate },
   }).lean();

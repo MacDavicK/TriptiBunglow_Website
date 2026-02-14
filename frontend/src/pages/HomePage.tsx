@@ -10,21 +10,21 @@ import type { PropertyListItem } from '@shared/types';
 const PLACEHOLDER_PROPERTIES: PropertyListItem[] = [
   {
     _id: '1',
-    name: 'Bungalow A',
-    slug: 'bungalow-a',
-    ratePerNight: 2500000,
-    maxGuests: 8,
+    name: 'Tripti Bungalow',
+    slug: 'tripti-bungalow',
+    ratePerNight: 3000000,
+    maxGuests: 50,
     photos: [],
-    amenities: ['WiFi', 'Parking', 'Kitchen'],
+    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
   },
   {
     _id: '2',
-    name: 'Bungalow B',
-    slug: 'bungalow-b',
-    ratePerNight: 2500000,
-    maxGuests: 8,
+    name: 'Spandan Bungalow',
+    slug: 'spandan-bungalow',
+    ratePerNight: 3000000,
+    maxGuests: 50,
     photos: [],
-    amenities: ['WiFi', 'Parking', 'Kitchen'],
+    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
   },
 ];
 
@@ -41,11 +41,12 @@ export function HomePage() {
             Vacation Bungalows in Thane
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Two beautiful bungalows in Thane, Maharashtra — perfect for getaways
-            with family and friends.
+            Two spacious bungalows in Thane, Maharashtra — with large lawns, fully equipped
+            kitchens, and room for up to 50 guests. Perfect for family gatherings, parties, and
+            weekend getaways.
           </p>
           <Link
-            to="/property/bungalow-a"
+            to="/property/tripti-bungalow"
             className="mt-8 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
           >
             View Properties

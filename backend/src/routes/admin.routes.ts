@@ -5,6 +5,7 @@ import {
   getBooking,
   approveBooking,
   rejectBooking,
+  confirmPayment,
   checkIn,
   checkOut,
   processRefund,
@@ -40,6 +41,7 @@ router.get('/bookings', listBookings);
 router.get('/bookings/:id', getBooking);
 router.patch('/bookings/:id/approve', approveBooking);
 router.patch('/bookings/:id/reject', rejectBooking);
+router.patch('/bookings/:id/confirm-payment', confirmPayment);
 router.patch('/bookings/:id/check-in', checkIn);
 router.patch('/bookings/:id/check-out', checkOut);
 router.post('/bookings/:id/damage-report', validate(createDamageReportValidation), createDamageReport);

@@ -1,6 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBooking, approveBooking, rejectBooking, checkInBooking, checkOutBooking } from '@/services/admin.api';
+import {
+  getBooking,
+  approveBooking,
+  rejectBooking,
+  checkInBooking,
+  checkOutBooking,
+  confirmPayment,
+} from '@/services/admin.api';
 import { formatCurrency } from '@/utils/format-currency';
 import { formatDateIST } from '@/utils/format-date';
 import { PageContainer } from '@/components/ui/PageContainer';
@@ -60,6 +67,16 @@ export function BookingDetailPage() {
       toast.success('Checked out');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: () => confirmPayment(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      toast.success('Payment confirmed — booking is now confirmed');
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to confirm payment'),
   });
 
   if (error) {
@@ -124,12 +141,55 @@ export function BookingDetailPage() {
                 <dd>{booking.specialRequests}</dd>
               </div>
             )}
+            {booking.upiReference && (
+              <div>
+                <dt className="text-gray-500">UPI Reference</dt>
+                <dd className="font-mono">{booking.upiReference}</dd>
+              </div>
+            )}
+            {booking.paymentScreenshotUrl && (
+              <div>
+                <dt className="text-gray-500">Payment Screenshot</dt>
+                <dd>
+                  <a
+                    href={booking.paymentScreenshotUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    View Screenshot
+                  </a>
+                </dd>
+              </div>
+            )}
+            {booking.additionalGuests && booking.additionalGuests.length > 0 && (
+              <div>
+                <dt className="text-gray-500">Additional Guests</dt>
+                <dd>
+                  {booking.additionalGuests.map((g, i) => (
+                    <span key={i}>
+                      {g.name}
+                      {i < booking.additionalGuests!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            )}
           </dl>
         </Card>
 
         <Card>
           <h2 className="font-semibold text-gray-900">Actions</h2>
           <div className="mt-4 flex flex-wrap gap-2">
+            {status === 'pending_payment' && (
+              <Button
+                variant="primary"
+                onClick={() => confirmPaymentMutation.mutate()}
+                loading={confirmPaymentMutation.isPending}
+              >
+                ✅ Confirm Payment
+              </Button>
+            )}
             {status === 'pending_approval' && (
               <>
                 <Button
@@ -137,7 +197,7 @@ export function BookingDetailPage() {
                   onClick={() => approveMutation.mutate()}
                   loading={approveMutation.isPending}
                 >
-                  Approve
+                  Approve (→ Pending Payment)
                 </Button>
                 <Button
                   variant="danger"

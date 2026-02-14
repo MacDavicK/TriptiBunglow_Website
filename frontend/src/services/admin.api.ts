@@ -108,6 +108,14 @@ export async function rejectBooking(id: string, reason: string): Promise<Booking
   return data.data;
 }
 
+export async function confirmPayment(id: string): Promise<Booking> {
+  const { data } = await api.patch<ApiResponse<Booking>>(`/admin/bookings/${id}/confirm-payment`);
+  if (!data.success || data.data == null) {
+    throw new Error(data.error?.message ?? 'Failed to confirm payment');
+  }
+  return data.data;
+}
+
 export async function checkInBooking(id: string): Promise<Booking> {
   const { data } = await api.patch<ApiResponse<Booking>>(`/admin/bookings/${id}/check-in`);
   if (!data.success || data.data == null) {

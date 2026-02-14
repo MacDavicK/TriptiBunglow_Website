@@ -13,7 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { DateRange } from 'react-day-picker';
 
-const RATE_PAISE = 2500000;
+const RATE_PAISE = 3000000;
 const DEPOSIT_PAISE = 500000;
 
 export function PropertyPage() {

@@ -69,16 +69,14 @@ export const createBookingValidation = [
     .withMessage('Nationality must be indian or foreign'),
 
   body('customer.idType')
-    .optional()
-    .isIn(['aadhaar', 'passport', 'driving_license', 'voter_id'])
-    .withMessage('Invalid ID type'),
+    .notEmpty()
+    .equals('aadhaar')
+    .withMessage('ID type must be aadhaar'),
 
   body('customer.idNumber')
-    .optional()
-    .isString()
-    .trim()
-    .isLength({ min: 4, max: 50 })
-    .withMessage('ID number must be 4-50 characters'),
+    .notEmpty()
+    .matches(/^\d{12}$/)
+    .withMessage('Aadhaar number must be exactly 12 digits'),
 
   body('customer.address')
     .notEmpty()
@@ -87,24 +85,44 @@ export const createBookingValidation = [
     .isLength({ min: 5, max: 500 })
     .withMessage('Address is required (5-500 characters)'),
 
-  body('customer.panNumber')
+  body('customer.aadhaarDocumentUrl')
+    .notEmpty()
+    .isURL()
+    .withMessage('Aadhaar document upload is required — photo must show Aadhaar number (UID) and VID clearly'),
+
+  // Additional guests (minimum 1 — total 2 Aadhaar IDs including primary)
+  body('additionalGuests')
+    .isArray({ min: 1 })
+    .withMessage('At least 1 additional guest with Aadhaar is required (minimum 2 IDs total)'),
+
+  body('additionalGuests.*.name')
+    .notEmpty()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Additional guest name is required (2-100 characters)'),
+
+  body('additionalGuests.*.aadhaarNumber')
+    .notEmpty()
+    .matches(/^\d{12}$/)
+    .withMessage('Additional guest Aadhaar must be exactly 12 digits'),
+
+  body('additionalGuests.*.aadhaarDocumentUrl')
+    .optional()
+    .isURL()
+    .withMessage('Additional guest Aadhaar document URL must be a valid URL'),
+
+  // UPI payment fields (optional at booking creation)
+  body('upiReference')
     .optional()
     .isString()
     .trim()
-    .matches(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
-    .withMessage('PAN must be in format ABCDE1234F'),
+    .isLength({ max: 100 })
+    .withMessage('UPI reference/UTR must be under 100 characters'),
 
-  body('customer.aadhaarDocumentUrl')
+  body('paymentScreenshotUrl')
     .optional()
-    .isString()
     .isURL()
-    .withMessage('Aadhaar document URL must be a valid URL'),
-
-  body('customer.panDocumentUrl')
-    .optional()
-    .isString()
-    .isURL()
-    .withMessage('PAN document URL must be a valid URL'),
+    .withMessage('Payment screenshot URL must be a valid URL'),
 
   // Booking-level fields
   body('reasonForRenting')

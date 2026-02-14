@@ -18,11 +18,12 @@ interface CustomerInfo {
   phone: string;
 }
 
-interface PaymentInfo {
-  razorpayOrderId: string;
-  razorpayPaymentId?: string;
-  amount: number;
-}
+// TODO: Re-enable when Razorpay gateway is activated
+// interface PaymentInfo {
+//   razorpayOrderId: string;
+//   razorpayPaymentId?: string;
+//   amount: number;
+// }
 
 /**
  * Format paise to rupees for display.
@@ -190,64 +191,195 @@ export const sendAdminNotification = async (
   }
 };
 
+// TODO: Re-enable when Razorpay gateway is activated
+// export const sendPaymentReceipt = async (
+//   booking: BookingInfo,
+//   payment: PaymentInfo,
+//   customerEmail: string
+// ): Promise<void> => { ... };
+
 /**
- * Send payment receipt email to customer.
+ * Send "booking received, awaiting payment confirmation" email to customer.
+ * Sent immediately after a standard booking is created with status pending_payment.
  */
-export const sendPaymentReceipt = async (
-  booking: BookingInfo,
-  payment: PaymentInfo,
-  customerEmail: string
-): Promise<void> => {
+export const sendBookingPendingEmail = async (info: {
+  bookingId: string;
+  customerName: string;
+  customerEmail: string;
+}): Promise<void> => {
   if (!resend) {
-    logger.info('Resend not configured — skipping payment receipt email');
+    logger.info('Resend not configured — skipping pending booking email');
     return;
   }
 
   try {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2d3748;">Payment Receipt</h2>
-        <p>Thank you for your payment. Here are the details:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 8px 0; font-weight: bold;">Booking ID</td>
-            <td style="padding: 8px 0;">${booking.bookingId}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 8px 0; font-weight: bold;">Order ID</td>
-            <td style="padding: 8px 0;">${payment.razorpayOrderId}</td>
-          </tr>
-          ${payment.razorpayPaymentId ? `
-          <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 8px 0; font-weight: bold;">Payment ID</td>
-            <td style="padding: 8px 0;">${payment.razorpayPaymentId}</td>
-          </tr>
-          ` : ''}
-          <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 8px 0; font-weight: bold;">Amount Paid</td>
-            <td style="padding: 8px 0;">${formatRupees(payment.amount)}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 8px 0; font-weight: bold;">Date</td>
-            <td style="padding: 8px 0;">${formatDate(new Date())}</td>
-          </tr>
-        </table>
-        <p style="color: #718096; font-size: 14px;">
-          Please keep this email as your payment receipt.
+        <h2 style="color: #2d3748;">Booking Received — Awaiting Payment Confirmation</h2>
+        <p>Dear ${info.customerName},</p>
+        <p>Thank you for your booking request. Your booking ID is <strong>${info.bookingId}</strong>.</p>
+        <p>We have received your details and security deposit payment information. The property owner is now verifying your payment.</p>
+        <p><strong>What happens next:</strong></p>
+        <ul>
+          <li>The owner will verify your UPI payment within <strong>24 hours</strong>.</li>
+          <li>You will receive a <strong>confirmation email</strong> once your payment is verified and booking is confirmed.</li>
+          <li>If you do not receive confirmation within 48 hours, please contact us directly.</li>
+        </ul>
+        <p>Please do not make any duplicate payments. If there is an issue with your payment, we will reach out to you.</p>
+        <p style="color: #718096; font-size: 14px; margin-top: 24px;">
+          Thank you for choosing Tripti & Spandan Bungalow.
         </p>
       </div>
     `;
 
     await resend.emails.send({
       from: fromEmail,
-      to: customerEmail,
-      subject: `Payment Receipt — ${booking.bookingId}`,
+      to: info.customerEmail,
+      subject: `Booking ${info.bookingId} — Awaiting Payment Confirmation`,
       html,
     });
 
-    logger.info({ bookingId: booking.bookingId }, 'Payment receipt email sent');
+    logger.info({ bookingId: info.bookingId, to: info.customerEmail }, 'Pending booking email sent to customer');
   } catch (err) {
-    logger.error({ err, bookingId: booking.bookingId }, 'Failed to send payment receipt email');
+    logger.error({ err, bookingId: info.bookingId }, 'Failed to send pending booking email');
+  }
+};
+
+/**
+ * Send detailed new-booking alert to admin.
+ * Includes ALL guest details: name, phone, email, reason for booking,
+ * duration of stay, which bungalow(s), booking type, special requirements.
+ * Sent immediately after any booking is created.
+ */
+export const sendAdminNewBookingAlert = async (info: {
+  bookingId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  propertyNames: string[];
+  checkIn: Date;
+  checkOut: Date;
+  nights: number;
+  guestCount: number;
+  reasonForRenting: string;
+  bookingType: string;
+  specialRequests?: string;
+  totalCharged: number;
+  depositAmount: number;
+}): Promise<void> => {
+  if (!resend) {
+    logger.info('Resend not configured — skipping admin new booking alert');
+    return;
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    logger.info('ADMIN_EMAIL not configured — skipping admin alert');
+    return;
+  }
+
+  try {
+    const propertyList = info.propertyNames.join(' & ');
+    const bungalowLabel = info.propertyNames.length === 2
+      ? 'Both Bungalows'
+      : info.propertyNames[0] || 'Unknown';
+
+    const whatsappLink = generateWhatsAppLink(
+      info.customerPhone,
+      `Hi ${info.customerName}, this is regarding your booking ${info.bookingId} at our bungalow.`
+    );
+
+    const bookingTypeLabel = info.bookingType === 'special'
+      ? 'Special Event (Wedding / Party / Function)'
+      : 'Standard Stay';
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d3748;">New Booking Request</h2>
+        <p style="font-size: 14px; color: #718096;">
+          Someone wants to book your bungalow. Their payment is awaiting your confirmation.
+        </p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold; width: 40%;">Booking ID</td>
+            <td style="padding: 10px 0;">${info.bookingId}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Guest Name</td>
+            <td style="padding: 10px 0;">${info.customerName}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Phone</td>
+            <td style="padding: 10px 0;">${info.customerPhone}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Email</td>
+            <td style="padding: 10px 0;">${info.customerEmail}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Bungalow(s)</td>
+            <td style="padding: 10px 0;">${bungalowLabel} (${propertyList})</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Check-in</td>
+            <td style="padding: 10px 0;">${formatDate(info.checkIn)}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Check-out</td>
+            <td style="padding: 10px 0;">${formatDate(info.checkOut)}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Duration</td>
+            <td style="padding: 10px 0;">${info.nights} night(s)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Total Guests</td>
+            <td style="padding: 10px 0;">${info.guestCount}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Booking Type</td>
+            <td style="padding: 10px 0;">${bookingTypeLabel}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Reason for Renting</td>
+            <td style="padding: 10px 0;">${info.reasonForRenting}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #f7fafc;">
+            <td style="padding: 10px 0; font-weight: bold;">Total Amount</td>
+            <td style="padding: 10px 0;">${formatRupees(info.totalCharged)}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 0; font-weight: bold;">Security Deposit</td>
+            <td style="padding: 10px 0;">${formatRupees(info.depositAmount)}</td>
+          </tr>
+          ${info.specialRequests ? `
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #fffaf0;">
+            <td style="padding: 10px 0; font-weight: bold;">Special Requests</td>
+            <td style="padding: 10px 0;">${info.specialRequests}</td>
+          </tr>
+          ` : ''}
+        </table>
+        <p style="margin-top: 16px;">
+          <a href="${whatsappLink}" style="display: inline-block; padding: 10px 20px; background: #25D366; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            Contact Guest on WhatsApp
+          </a>
+        </p>
+        <p style="color: #718096; font-size: 13px; margin-top: 24px;">
+          Log in to the admin dashboard to verify the UPI payment and confirm this booking.
+        </p>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: adminEmail,
+      subject: `New Booking — ${info.bookingId} | ${info.customerName} | ${bungalowLabel} | ${info.reasonForRenting}`,
+      html,
+    });
+
+    logger.info({ bookingId: info.bookingId }, 'Admin new booking alert sent');
+  } catch (err) {
+    logger.error({ err, bookingId: info.bookingId }, 'Failed to send admin new booking alert');
   }
 };
 

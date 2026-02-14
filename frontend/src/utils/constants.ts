@@ -1,11 +1,14 @@
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:5000/api';
-export const RAZORPAY_KEY_ID = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || '';
 
-export const PROPERTY_SLUGS = ['bungalow-a', 'bungalow-b'] as const;
+// Razorpay disabled — manual UPI payment active
+// export const RAZORPAY_KEY_ID = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || '';
+
+export const PROPERTY_SLUGS = ['tripti-bungalow', 'spandan-bungalow'] as const;
 
 export const BOOKING_STATUSES = [
   'hold',
+  'pending_payment',
   'pending_approval',
   'confirmed',
   'checked_in',
@@ -21,6 +24,7 @@ export const BOOKING_STATUS_BADGE_COLORS: Record<
   'green' | 'amber' | 'blue' | 'purple' | 'gray' | 'red'
 > = {
   hold: 'blue',
+  pending_payment: 'amber',
   pending_approval: 'amber',
   confirmed: 'green',
   checked_in: 'purple',

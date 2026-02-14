@@ -1,5 +1,6 @@
 export const BookingStatus = {
   HOLD: 'hold',
+  PENDING_PAYMENT: 'pending_payment',
   PENDING_APPROVAL: 'pending_approval',
   CONFIRMED: 'confirmed',
   CHECKED_IN: 'checked_in',
@@ -60,6 +61,6 @@ export const IdType = {
 export const ID_TYPE_VALUES = Object.values(IdType);
 
 // Monetary values in paise
-export const RATE_PER_NIGHT = 2500000; // ₹25,000
+export const RATE_PER_NIGHT = 3000000; // ₹30,000
 export const SECURITY_DEPOSIT = 500000; // ₹5,000
-export const HOLD_EXPIRY_SECONDS = 900; // 15 minutes
+export const HOLD_EXPIRY_SECONDS = 172800; // 48 hours — manual UPI payment window

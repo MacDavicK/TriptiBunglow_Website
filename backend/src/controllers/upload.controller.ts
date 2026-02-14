@@ -4,7 +4,7 @@ import { catchAsync } from '../utils/catch-async';
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 
-const ALLOWED_TYPES = ['aadhaar', 'pan'] as const;
+const ALLOWED_TYPES = ['aadhaar', 'payment_screenshot'] as const;
 
 /**
  * POST /api/upload/document

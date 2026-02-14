@@ -9,9 +9,7 @@ export interface ICustomer extends Document {
   nationality: string;
   idType?: string;
   idNumber?: string;
-  panNumber?: string;
   aadhaarDocumentUrl?: string;
-  panDocumentUrl?: string;
   idDocumentUrl?: string;
   dataRetentionExpiresAt: Date;
   createdAt: Date;
@@ -27,9 +25,7 @@ const customerSchema = new Schema<ICustomer>(
     nationality: { type: String, enum: NATIONALITY_VALUES, required: true },
     idType: { type: String, enum: ID_TYPE_VALUES },
     idNumber: { type: String },
-    panNumber: { type: String },
     aadhaarDocumentUrl: { type: String },
-    panDocumentUrl: { type: String },
     idDocumentUrl: { type: String },
     dataRetentionExpiresAt: { type: Date, required: true },
   },

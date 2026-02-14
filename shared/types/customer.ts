@@ -7,9 +7,7 @@ export interface Customer {
   idType?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id';
   idNumber?: string;          // Encrypted at rest. Only decrypted for authorized admin.
   address?: string;
-  panNumber?: string;
   aadhaarDocumentUrl?: string;
-  panDocumentUrl?: string;
   idDocumentUrl?: string;     // Legacy; prefer aadhaarDocumentUrl
   dataRetentionExpiresAt: string;
   createdAt: string;
@@ -24,7 +22,5 @@ export interface CreateCustomerRequest {
   nationality: 'indian' | 'foreign';
   idType?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id';
   idNumber?: string;
-  panNumber?: string;
   aadhaarDocumentUrl?: string;
-  panDocumentUrl?: string;
 }
