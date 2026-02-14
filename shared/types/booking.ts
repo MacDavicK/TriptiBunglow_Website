@@ -29,6 +29,9 @@ export interface Booking {
   consentRecordId?: string;
   specialRequests?: string;
   guestCount: number;
+  reasonForRenting: string;
+  termsAcceptedAt: string;
+  termsVersion: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,13 +44,20 @@ export interface CreateBookingRequest {
   bookingType: BookingType;
   guestCount: number;
   specialRequests?: string;
+  reasonForRenting: string;
+  termsAcceptedAt: string;
+  termsVersion: string;
   customer: {
     name: string;
     email: string;
     phone: string;
+    address: string;
     nationality: 'indian' | 'foreign';
     idType?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id';
     idNumber?: string;
+    panNumber?: string;
+    aadhaarDocumentUrl?: string;
+    panDocumentUrl?: string;
   };
   consent: {
     consentVersion: string;

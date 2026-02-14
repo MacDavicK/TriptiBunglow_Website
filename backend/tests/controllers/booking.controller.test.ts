@@ -12,10 +12,14 @@ const validBookingPayload = () => ({
   checkOut: '2026-06-17',
   bookingType: 'standard',
   guestCount: 5,
+  reasonForRenting: 'Family vacation',
+  termsAcceptedAt: new Date().toISOString(),
+  termsVersion: '1.0',
   customer: {
     name: 'Test Customer',
     email: 'test@example.com',
     phone: '+919876543210',
+    address: '789 Booking Ave, Thane 400601',
     nationality: 'indian',
   },
   consent: {

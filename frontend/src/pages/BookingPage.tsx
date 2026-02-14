@@ -3,6 +3,8 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { useProperty } from '@/hooks/useProperties';
 import { useBooking } from '@/hooks/useBooking';
 import { createOrder } from '@/services/payment.api';
@@ -14,69 +16,113 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Card } from '@/components/ui/Card';
+import { TermsAndConditions } from '@/components/booking/TermsAndConditions';
+import { DocumentUpload } from '@/components/ui/DocumentUpload';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import type { CreateBookingRequest } from '@shared/types';
 
 const RATE_PAISE = 2500000;
 const DEPOSIT_PAISE = 500000;
+const IST = 'Asia/Kolkata';
 
-const step1Schema = z.object({
+const guestDetailsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
-  phone: z.string().min(10, 'Valid phone required'),
-  nationality: z.enum(['indian', 'foreign']),
-  idType: z.string().optional(),
-  idNumber: z.string().optional(),
-}).refine(
-  (data) => {
-    if (data.nationality === 'foreign') {
-      return Boolean(data.idType && data.idNumber);
-    }
-    return true;
-  },
-  { message: 'ID type and number required for foreign guests', path: ['idNumber'] }
-);
-
-const step2Schema = z.object({
-  bookingType: z.enum(['standard', 'special']),
-  guestCount: z.number().min(1).max(20),
-  specialRequests: z.string().optional(),
+  address: z.string().min(5, 'Address must be at least 5 characters').max(500),
+  aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar must be exactly 12 digits'),
+  panNumber: z
+    .string()
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Invalid PAN format (e.g., ABCDE1234F)')
+    .optional()
+    .or(z.literal('')),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),
+  email: z.string().email('Invalid email address'),
+  guestCount: z.number().min(1, 'At least 1 guest').max(50, 'Maximum 50 guests'),
+  reasonForRenting: z.string().min(1, 'Please select a reason'),
+  customReason: z.string().optional(),
 });
+
+const datesSchema = z
+  .object({
+    checkIn: z.string().min(1, 'Check-in date is required'),
+    checkOut: z.string().min(1, 'Check-out date is required'),
+    bookingType: z.enum(['standard', 'special']),
+    specialRequests: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.checkIn || !data.checkOut) return true;
+      return new Date(data.checkOut) > new Date(data.checkIn);
+    },
+    { message: 'Check-out must be after check-in', path: ['checkOut'] }
+  );
 
 const step3Schema = z.object({
-  consent: z.literal(true, { errorMap: () => ({ message: 'You must accept the privacy terms' }) }),
+  consent: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept the privacy terms' }),
+  }),
 });
 
-type Step1Values = z.infer<typeof step1Schema>;
-type Step2Values = z.infer<typeof step2Schema>;
+type GuestDetailsValues = z.infer<typeof guestDetailsSchema>;
+type DatesValues = z.infer<typeof datesSchema>;
+
+const REASON_OPTIONS = [
+  { value: '', label: 'Select reason' },
+  { value: 'Family Gathering', label: 'Family Gathering' },
+  { value: 'Birthday Party', label: 'Birthday Party' },
+  { value: 'Corporate Retreat', label: 'Corporate Retreat' },
+  { value: 'Wedding Function', label: 'Wedding Function' },
+  { value: 'Weekend Getaway', label: 'Weekend Getaway' },
+  { value: 'Festival Celebration', label: 'Festival Celebration' },
+  { value: 'Other', label: 'Other' },
+];
+
+function formatDateLocalDDMMYYYY(date: Date): string {
+  return format(toZonedTime(date, IST), 'dd/MM/yyyy');
+}
+
+function formatDateForInput(isoDateStr: string): string {
+  const d = new Date(isoDateStr);
+  return format(d, 'yyyy-MM-dd');
+}
 
 export function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const checkIn = searchParams.get('checkIn') ?? '';
-  const checkOut = searchParams.get('checkOut') ?? '';
-  const guestsParam = searchParams.get('guests');
-  const guestCountDefault = guestsParam ? Number(guestsParam) : 2;
+  const [step, setStep] = useState(0);
+  const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
+  const [termsVersion, setTermsVersion] = useState('');
+  const [aadhaarUploadUrl, setAadhaarUploadUrl] = useState<string | undefined>();
+  const [panUploadUrl, setPanUploadUrl] = useState<string | undefined>();
+
+  const urlCheckIn = searchParams.get('checkIn') ?? '';
+  const urlCheckOut = searchParams.get('checkOut') ?? '';
 
   const { data: property } = useProperty(slug);
   const createBookingMutation = useBooking();
 
-  const step1Form = useForm<Step1Values>({
-    resolver: zodResolver(step1Schema),
+  const guestForm = useForm<GuestDetailsValues>({
+    resolver: zodResolver(guestDetailsSchema),
     defaultValues: {
-      nationality: 'indian',
-      idType: '',
-      idNumber: '',
+      name: '',
+      address: '',
+      aadhaarNumber: '',
+      panNumber: '',
+      phone: '',
+      email: '',
+      guestCount: 2,
+      reasonForRenting: '',
+      customReason: '',
     },
   });
 
-  const step2Form = useForm<Step2Values>({
-    resolver: zodResolver(step2Schema),
+  const datesForm = useForm<DatesValues>({
+    resolver: zodResolver(datesSchema),
     defaultValues: {
+      checkIn: urlCheckIn ? formatDateForInput(urlCheckIn) : '',
+      checkOut: urlCheckOut ? formatDateForInput(urlCheckOut) : '',
       bookingType: 'standard',
-      guestCount: guestCountDefault,
       specialRequests: '',
     },
   });
@@ -86,54 +132,79 @@ export function BookingPage() {
     defaultValues: { consent: false },
   });
 
-  const nights = checkIn && checkOut
-    ? Math.ceil(
-        (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (24 * 60 * 60 * 1000)
-      )
-    : 0;
+  const checkIn = datesForm.watch('checkIn');
+  const checkOut = datesForm.watch('checkOut');
+  const nights =
+    checkIn && checkOut
+      ? Math.ceil(
+          (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (24 * 60 * 60 * 1000)
+        )
+      : 0;
   const totalPaise = nights * RATE_PAISE + DEPOSIT_PAISE;
 
-  const onStep1Submit = (_data: Step1Values) => {
+  const handleTermsAccept = (accepted: boolean, version: string, acceptedAt: string) => {
+    setTermsVersion(version);
+    setTermsAcceptedAt(accepted ? acceptedAt : '');
+  };
+
+  const onStep1Submit = (_data: GuestDetailsValues) => {
     setStep(2);
   };
 
-  const onStep2Submit = (_data: Step2Values) => {
+  const onStep2Submit = (_data: DatesValues) => {
     setStep(3);
   };
 
   const onStep3Submit = async () => {
-    if (!property || !checkIn || !checkOut) {
-      toast.error('Missing property or dates');
+    if (!property) {
+      toast.error('Missing property');
       return;
     }
-    const s1 = step1Form.getValues();
-    const s2 = step2Form.getValues();
+    const guest = guestForm.getValues();
+    const dates = datesForm.getValues();
+    const checkInISO = dates.checkIn;
+    const checkOutISO = dates.checkOut;
+    if (!checkInISO || !checkOutISO) {
+      toast.error('Please select check-in and check-out dates');
+      return;
+    }
 
-    const payload = {
+    const reasonForRenting =
+      guest.reasonForRenting === 'Other' ? guest.customReason || 'Other' : guest.reasonForRenting;
+
+    const payload: CreateBookingRequest = {
       propertyIds: [property._id],
-      checkIn,
-      checkOut,
-      bookingType: s2.bookingType,
-      guestCount: s2.guestCount,
-      specialRequests: s2.specialRequests,
+      checkIn: checkInISO,
+      checkOut: checkOutISO,
+      bookingType: dates.bookingType,
+      guestCount: guest.guestCount,
+      specialRequests: dates.specialRequests,
+      reasonForRenting,
+      termsAcceptedAt,
+      termsVersion,
       customer: {
-        name: s1.name,
-        email: s1.email,
-        phone: s1.phone,
-        nationality: s1.nationality,
-        idType: s1.idType as 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | undefined,
-        idNumber: s1.idNumber,
+        name: guest.name,
+        email: guest.email,
+        phone: guest.phone,
+        address: guest.address,
+        nationality: 'indian',
+        idType: 'aadhaar',
+        idNumber: guest.aadhaarNumber,
+        panNumber: guest.panNumber && guest.panNumber.trim() ? guest.panNumber : undefined,
+        aadhaarDocumentUrl: aadhaarUploadUrl,
+        panDocumentUrl: panUploadUrl,
       },
       consent: {
         consentVersion: '1.0',
-        purposesConsented: ['booking', 'communication', 'legal'],
-        consentText: 'I have read and accept the privacy policy.',
+        purposesConsented: ['booking', 'communication', 'legal', 'id_verification'],
+        consentText:
+          'I have read and accept the privacy policy. I consent to my Aadhaar and PAN details being stored securely for verification purposes.',
       },
     };
 
     try {
       const { bookingId } = await createBookingMutation.mutateAsync(payload);
-      if (s2.bookingType === 'special') {
+      if (dates.bookingType === 'special') {
         toast.success('Request submitted. We will contact you shortly.');
         navigate(`/booking/confirmation/${bookingId}`);
         return;
@@ -170,89 +241,216 @@ export function BookingPage() {
     );
   }
 
+  const stepLabels = [
+    'T&C',
+    'Guest Details',
+    'Dates & Stay',
+    'Review & Pay',
+  ];
+
   return (
     <PageContainer>
       <div className="py-8">
-        <div className="mb-8 flex items-center gap-2 text-sm text-gray-600">
-          <span className={step >= 1 ? 'font-medium text-indigo-600' : ''}>1. Guest details</span>
-          <span>→</span>
-          <span className={step >= 2 ? 'font-medium text-indigo-600' : ''}>2. Requests</span>
-          <span>→</span>
-          <span className={step >= 3 ? 'font-medium text-indigo-600' : ''}>3. Review & Pay</span>
+        <div className="mb-8 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          {stepLabels.map((label, i) => (
+            <span key={label}>
+              <span className={step >= i ? 'font-medium text-indigo-600' : ''}>
+                {i + 1}. {label}
+              </span>
+              {i < stepLabels.length - 1 && <span className="ml-2">→</span>}
+            </span>
+          ))}
         </div>
 
         <Card className="max-w-xl">
+          {step === 0 && (
+            <>
+              <TermsAndConditions onAccept={handleTermsAccept} />
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => setStep(1)}
+                  disabled={!termsAcceptedAt}
+                >
+                  Next
+                </Button>
+              </div>
+            </>
+          )}
+
           {step === 1 && (
-            <form onSubmit={step1Form.handleSubmit(onStep1Submit)}>
+            <form onSubmit={guestForm.handleSubmit(onStep1Submit)}>
               <h2 className="text-lg font-semibold text-gray-900">Guest details</h2>
               <div className="mt-4 space-y-4">
-                <Input label="Full name" {...step1Form.register('name')} error={step1Form.formState.errors.name?.message} />
-                <Input label="Email" type="email" {...step1Form.register('email')} error={step1Form.formState.errors.email?.message} />
-                <Input label="Phone" type="tel" {...step1Form.register('phone')} error={step1Form.formState.errors.phone?.message} />
                 <div>
-                  <p className="mb-2 text-sm font-medium text-gray-700">Nationality</p>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input type="radio" value="indian" {...step1Form.register('nationality')} />
-                      Indian
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input type="radio" value="foreign" {...step1Form.register('nationality')} />
-                      Foreign
-                    </label>
-                  </div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Date of Booking
+                  </label>
+                  <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-700">
+                    {formatDateLocalDDMMYYYY(new Date())}
+                  </p>
                 </div>
-                {step1Form.watch('nationality') === 'foreign' && (
-                  <>
-                    <Select
-                      label="ID type"
-                      options={[
-                        { value: 'passport', label: 'Passport' },
-                        { value: 'aadhaar', label: 'Aadhaar' },
-                        { value: 'driving_license', label: 'Driving License' },
-                        { value: 'voter_id', label: 'Voter ID' },
-                      ]}
-                      {...step1Form.register('idType')}
-                    />
-                    <Input label="ID number" {...step1Form.register('idNumber')} error={step1Form.formState.errors.idNumber?.message} />
-                  </>
+                <Input
+                  label="Guest Name"
+                  {...guestForm.register('name')}
+                  error={guestForm.formState.errors.name?.message}
+                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Address</label>
+                  <textarea
+                    {...guestForm.register('address')}
+                    rows={3}
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+                    aria-invalid={Boolean(guestForm.formState.errors.address)}
+                  />
+                  {guestForm.formState.errors.address && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">
+                      {guestForm.formState.errors.address.message}
+                    </p>
+                  )}
+                </div>
+                <Input
+                  label="Aadhaar Card Number"
+                  {...guestForm.register('aadhaarNumber')}
+                  placeholder="12 digits"
+                  error={guestForm.formState.errors.aadhaarNumber?.message}
+                />
+                <DocumentUpload
+                  label="Aadhaar Card"
+                  documentType="aadhaar"
+                  onUploadComplete={setAadhaarUploadUrl}
+                  existingUrl={aadhaarUploadUrl}
+                />
+                <Input
+                  label="PAN Number (optional)"
+                  {...guestForm.register('panNumber')}
+                  placeholder="ABCDE1234F"
+                  error={guestForm.formState.errors.panNumber?.message}
+                />
+                <DocumentUpload
+                  label="PAN Card"
+                  documentType="pan"
+                  onUploadComplete={setPanUploadUrl}
+                  existingUrl={panUploadUrl}
+                />
+                <Input
+                  label="Mobile Number"
+                  type="tel"
+                  {...guestForm.register('phone')}
+                  placeholder="10-digit Indian mobile"
+                  error={guestForm.formState.errors.phone?.message}
+                />
+                <Input
+                  label="Email Address"
+                  type="email"
+                  {...guestForm.register('email')}
+                  error={guestForm.formState.errors.email?.message}
+                />
+                <Input
+                  label="Total Number of Guests"
+                  type="number"
+                  min={1}
+                  max={50}
+                  {...guestForm.register('guestCount', { valueAsNumber: true })}
+                  error={guestForm.formState.errors.guestCount?.message}
+                />
+                <Select
+                  label="Reason for Renting"
+                  options={REASON_OPTIONS}
+                  {...guestForm.register('reasonForRenting')}
+                  error={guestForm.formState.errors.reasonForRenting?.message}
+                />
+                {guestForm.watch('reasonForRenting') === 'Other' && (
+                  <Input
+                    label="Please specify"
+                    {...guestForm.register('customReason')}
+                    error={guestForm.formState.errors.customReason?.message}
+                  />
                 )}
               </div>
-              <Button type="submit" variant="primary" className="mt-6">
-                Next
-              </Button>
+              <div className="mt-6 flex gap-2">
+                <Button type="button" variant="secondary" onClick={() => setStep(0)}>
+                  Back
+                </Button>
+                <Button type="submit" variant="primary">
+                  Next
+                </Button>
+              </div>
             </form>
           )}
 
           {step === 2 && (
-            <form onSubmit={step2Form.handleSubmit(onStep2Submit)}>
-              <h2 className="text-lg font-semibold text-gray-900">Booking type & requests</h2>
+            <form onSubmit={datesForm.handleSubmit(onStep2Submit)}>
+              <h2 className="text-lg font-semibold text-gray-900">Check-in / Check-out Details</h2>
               <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Check-in
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="date"
+                      {...datesForm.register('checkIn')}
+                      className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+                    />
+                    <span className="text-sm text-gray-600">12:00 PM (Noon)</span>
+                  </div>
+                  {datesForm.formState.errors.checkIn && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {datesForm.formState.errors.checkIn.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Check-out
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="date"
+                      {...datesForm.register('checkOut')}
+                      className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+                    />
+                    <span className="text-sm text-gray-600">10:00 AM</span>
+                  </div>
+                  {datesForm.formState.errors.checkOut && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {datesForm.formState.errors.checkOut.message}
+                    </p>
+                  )}
+                </div>
+                {nights > 0 && (
+                  <div className="rounded-lg bg-gray-50 p-4 text-sm">
+                    <p>
+                      {nights} night(s) × {formatCurrency(RATE_PAISE)} ={' '}
+                      {formatCurrency(nights * RATE_PAISE)}
+                    </p>
+                    <p>Deposit: {formatCurrency(DEPOSIT_PAISE)}</p>
+                    <p className="mt-2 font-semibold">Total: {formatCurrency(totalPaise)}</p>
+                  </div>
+                )}
                 <div>
                   <p className="mb-2 text-sm font-medium text-gray-700">Booking type</p>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2">
-                      <input type="radio" value="standard" {...step2Form.register('bookingType')} />
+                      <input
+                        type="radio"
+                        value="standard"
+                        {...datesForm.register('bookingType')}
+                      />
                       Standard
                     </label>
                     <label className="flex items-center gap-2">
-                      <input type="radio" value="special" {...step2Form.register('bookingType')} />
+                      <input type="radio" value="special" {...datesForm.register('bookingType')} />
                       Special event
                     </label>
                   </div>
                 </div>
                 <Input
-                  label="Guest count"
-                  type="number"
-                  min={1}
-                  max={20}
-                  {...step2Form.register('guestCount', { valueAsNumber: true })}
-                  error={step2Form.formState.errors.guestCount?.message}
-                />
-                <Input
                   label="Special requests (optional)"
-                  {...step2Form.register('specialRequests')}
-                  error={step2Form.formState.errors.specialRequests?.message}
+                  {...datesForm.register('specialRequests')}
+                  error={datesForm.formState.errors.specialRequests?.message}
                 />
               </div>
               <div className="mt-6 flex gap-2">
@@ -269,27 +467,47 @@ export function BookingPage() {
           {step === 3 && (
             <form onSubmit={step3Form.handleSubmit(onStep3Submit)}>
               <h2 className="text-lg font-semibold text-gray-900">Review & Pay</h2>
-              <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
-                <p><strong>{property.name}</strong></p>
-                <p>Check-in: {checkIn} · Check-out: {checkOut}</p>
-                <p>{nights} night(s) × {formatCurrency(RATE_PAISE)} = {formatCurrency(nights * RATE_PAISE)}</p>
-                <p>Deposit: {formatCurrency(DEPOSIT_PAISE)}</p>
-                <p className="mt-2 font-semibold">Total: {formatCurrency(totalPaise)}</p>
-              </div>
-              <div className="mt-4">
-                <label className="flex items-start gap-2">
-                  <input type="checkbox" {...step3Form.register('consent')} className="mt-1" />
-                  <span className="text-sm text-gray-700">
-                    I have read and accept the{' '}
-                    <Link to="/privacy-policy" className="text-indigo-600 hover:underline">
-                      Privacy Policy
-                    </Link>{' '}
-                    (DPDP). My data will be used for booking and communication.
-                  </span>
-                </label>
-                {step3Form.formState.errors.consent && (
-                  <p className="mt-1 text-sm text-red-600">{step3Form.formState.errors.consent.message}</p>
-                )}
+              <div className="mt-4 space-y-4">
+                <div className="rounded-lg bg-gray-50 p-4 text-sm">
+                  <p>
+                    <strong>{property.name}</strong>
+                  </p>
+                  <p>
+                    Check-in: {checkIn ? formatDateLocalDDMMYYYY(new Date(checkIn)) : '—'} (12:00
+                    PM) · Check-out: {checkOut ? formatDateLocalDDMMYYYY(new Date(checkOut)) : '—'}{' '}
+                    (10:00 AM)
+                  </p>
+                  <p>
+                    {nights} night(s) × {formatCurrency(RATE_PAISE)} ={' '}
+                    {formatCurrency(nights * RATE_PAISE)}
+                  </p>
+                  <p>Deposit: {formatCurrency(DEPOSIT_PAISE)}</p>
+                  <p className="mt-2 font-semibold">Total: {formatCurrency(totalPaise)}</p>
+                  <p className="mt-2 text-gray-600">
+                    Guest: {guestForm.getValues('name')} · {guestForm.getValues('email')}
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      {...step3Form.register('consent')}
+                      className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      I have read and accept the{' '}
+                      <Link to="/privacy-policy" className="text-indigo-600 hover:underline">
+                        Privacy Policy
+                      </Link>{' '}
+                      (DPDP). My data will be used for booking and communication.
+                    </span>
+                  </label>
+                  {step3Form.formState.errors.consent && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {step3Form.formState.errors.consent.message}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="mt-6 flex gap-2">
                 <Button type="button" variant="secondary" onClick={() => setStep(2)}>
@@ -300,7 +518,7 @@ export function BookingPage() {
                   variant="primary"
                   loading={createBookingMutation.isPending}
                 >
-                  {step2Form.getValues('bookingType') === 'special'
+                  {datesForm.getValues('bookingType') === 'special'
                     ? 'Submit request'
                     : `Pay ${formatCurrency(totalPaise)}`}
                 </Button>

@@ -12,6 +12,8 @@ import { publicRoutes } from './routes/public.routes';
 import { paymentRoutes } from './routes/payment.routes';
 import { adminRoutes } from './routes/admin.routes';
 import { customerRoutes } from './routes/customer.routes';
+import { uploadRoutes } from './routes/upload.routes';
+import { termsRoutes } from './routes/terms.routes';
 
 const app = express();
 
@@ -34,7 +36,15 @@ app.use(
   })
 );
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
+// Webhook must get raw body for HMAC-SHA256 verification — apply raw parser before any other body consumer
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+// JSON for all other routes
+app.use((req, res, next) => {
+  if (req.path === '/api/payments/webhook') {
+    return next(); // already parsed as raw above; path is pathname-only so query params don't break skip
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
 app.use(mongoSanitize());
 app.use(hpp());
 app.use(apiLimiter);
@@ -46,9 +56,11 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use('/api', publicRoutes);
+app.use('/api', termsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use((_req, res) => {

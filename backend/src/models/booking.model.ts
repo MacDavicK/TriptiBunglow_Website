@@ -21,6 +21,9 @@ export interface IBooking extends Document {
   consentRecordId?: Types.ObjectId;
   specialRequests?: string;
   guestCount: number;
+  reasonForRenting: string;
+  termsAcceptedAt: Date;
+  termsVersion: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +48,9 @@ const bookingSchema = new Schema<IBooking>(
     consentRecordId: { type: Schema.Types.ObjectId, ref: 'ConsentRecord' },
     specialRequests: { type: String },
     guestCount: { type: Number, required: true },
+    reasonForRenting: { type: String, required: true, trim: true },
+    termsAcceptedAt: { type: Date, required: true },
+    termsVersion: { type: String, required: true, default: '1.0' },
   },
   { timestamps: true }
 );

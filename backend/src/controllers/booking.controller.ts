@@ -21,6 +21,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     specialRequests,
     customer: customerData,
     consent: consentData,
+    reasonForRenting,
+    termsAcceptedAt,
+    termsVersion,
   } = req.body;
 
   // Validate properties exist
@@ -42,10 +45,14 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const totalCharged = RATE_PER_NIGHT * nights * propertyIds.length + SECURITY_DEPOSIT;
   const depositAmount = SECURITY_DEPOSIT;
 
-  // Encrypt ID number if provided
+  // Encrypt sensitive fields if provided
   let encryptedIdNumber: string | undefined;
   if (customerData.idNumber) {
     encryptedIdNumber = encrypt(customerData.idNumber);
+  }
+  let encryptedPanNumber: string | undefined;
+  if (customerData.panNumber) {
+    encryptedPanNumber = encrypt(customerData.panNumber);
   }
 
   // Create customer
@@ -56,9 +63,13 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     name: customerData.name,
     email: customerData.email,
     phone: customerData.phone,
+    address: customerData.address,
     nationality: customerData.nationality,
     idType: customerData.idType,
     idNumber: encryptedIdNumber,
+    panNumber: encryptedPanNumber,
+    aadhaarDocumentUrl: customerData.aadhaarDocumentUrl,
+    panDocumentUrl: customerData.panDocumentUrl,
     dataRetentionExpiresAt,
   });
 
@@ -89,6 +100,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     consentRecordId: consentRecord._id,
     specialRequests,
     guestCount,
+    reasonForRenting,
+    termsAcceptedAt: new Date(termsAcceptedAt),
+    termsVersion,
   });
 
   // Create date holds (prevents double-booking via unique constraint)

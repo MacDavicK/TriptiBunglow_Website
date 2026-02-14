@@ -80,6 +80,50 @@ export const createBookingValidation = [
     .isLength({ min: 4, max: 50 })
     .withMessage('ID number must be 4-50 characters'),
 
+  body('customer.address')
+    .notEmpty()
+    .isString()
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Address is required (5-500 characters)'),
+
+  body('customer.panNumber')
+    .optional()
+    .isString()
+    .trim()
+    .matches(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
+    .withMessage('PAN must be in format ABCDE1234F'),
+
+  body('customer.aadhaarDocumentUrl')
+    .optional()
+    .isString()
+    .isURL()
+    .withMessage('Aadhaar document URL must be a valid URL'),
+
+  body('customer.panDocumentUrl')
+    .optional()
+    .isString()
+    .isURL()
+    .withMessage('PAN document URL must be a valid URL'),
+
+  // Booking-level fields
+  body('reasonForRenting')
+    .notEmpty()
+    .isString()
+    .trim()
+    .isLength({ min: 3, max: 500 })
+    .withMessage('Reason for renting is required (3-500 characters)'),
+
+  body('termsAcceptedAt')
+    .notEmpty()
+    .isISO8601()
+    .withMessage('termsAcceptedAt must be a valid ISO 8601 date'),
+
+  body('termsVersion')
+    .notEmpty()
+    .isString()
+    .withMessage('Terms version is required'),
+
   // Consent fields
   body('consent.consentVersion')
     .notEmpty()

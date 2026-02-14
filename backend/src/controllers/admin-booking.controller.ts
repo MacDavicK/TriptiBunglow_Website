@@ -5,6 +5,7 @@ import { catchAsync } from '../utils/catch-async';
 import { AppError } from '../utils/app-error';
 import { logAudit } from '../services/audit.service';
 import { releaseDateHolds } from '../services/availability.service';
+import * as paymentService from '../services/payment.service';
 
 export const listBookings = catchAsync(async (req: Request, res: Response) => {
   const page = req.query.page as string | undefined;
@@ -210,10 +211,70 @@ export const checkOut = catchAsync(async (req: Request, res: Response) => {
     { depositRefundAmount: booking.depositRefundAmount }
   );
 
-  // TODO: Trigger deposit refund via Razorpay (Day 6)
-
   res.json({
     success: true,
     data: booking,
+  });
+});
+
+/**
+ * POST /api/admin/bookings/:id/refund
+ * Process deposit refund for a checked-out booking.
+ */
+export const processRefund = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid booking ID', 400, 'INVALID_ID');
+  }
+
+  const booking = await Booking.findById(id);
+  if (!booking) {
+    throw new AppError('Booking not found', 404, 'BOOKING_NOT_FOUND');
+  }
+
+  if (booking.status !== 'checked_out') {
+    throw new AppError(
+      `Cannot process refund for booking with status "${booking.status}". Must be checked out.`,
+      400,
+      'INVALID_STATUS'
+    );
+  }
+
+  if (!booking.razorpayPaymentId) {
+    throw new AppError('No payment found for this booking', 400, 'NO_PAYMENT');
+  }
+
+  const refundAmount = booking.depositRefundAmount ?? booking.depositAmount;
+  if (refundAmount <= 0) {
+    throw new AppError('No refund amount to process', 400, 'NO_REFUND_AMOUNT');
+  }
+
+  const reason = (req.body.reason as string) || 'Security deposit refund';
+
+  const refundResult = await paymentService.processRefund(
+    booking.razorpayPaymentId,
+    refundAmount,
+    reason
+  );
+
+  booking.status = 'refunded';
+  await booking.save();
+
+  await logAudit(
+    'booking.refund_processed',
+    'Booking',
+    booking._id,
+    req.adminId || 'unknown',
+    { refundId: refundResult.refundId, amount: refundAmount, reason }
+  );
+
+  res.json({
+    success: true,
+    data: {
+      bookingId: booking.bookingId,
+      status: booking.status,
+      refund: refundResult,
+    },
   });
 });

@@ -7,7 +7,9 @@ import {
   rejectBooking,
   checkIn,
   checkOut,
+  processRefund,
 } from '../controllers/admin-booking.controller';
+import { createDamageReport } from '../controllers/admin-damage-report.controller';
 import { getStats } from '../controllers/admin-dashboard.controller';
 import {
   listBlockedDates,
@@ -17,6 +19,7 @@ import {
 import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { loginValidation } from '../validators/admin-auth.validator';
+import { createDamageReportValidation } from '../validators/admin-booking.validator';
 import { loginLimiter } from '../middleware/rate-limiter.middleware';
 
 const router = Router();
@@ -39,6 +42,8 @@ router.patch('/bookings/:id/approve', approveBooking);
 router.patch('/bookings/:id/reject', rejectBooking);
 router.patch('/bookings/:id/check-in', checkIn);
 router.patch('/bookings/:id/check-out', checkOut);
+router.post('/bookings/:id/damage-report', validate(createDamageReportValidation), createDamageReport);
+router.post('/bookings/:id/refund', processRefund);
 
 // Blocked dates
 router.get('/blocked-dates', listBlockedDates);
