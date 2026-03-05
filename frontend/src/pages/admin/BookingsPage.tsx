@@ -84,8 +84,8 @@ export function BookingsPage() {
                           {b.bookingId}
                         </Link>
                       </td>
-                      <td className="px-4 py-3">{b.customerName}</td>
-                      <td className="px-4 py-3">{b.customerPhone}</td>
+                      <td className="px-4 py-3">{(b as any).customerId?.name || b.customerName || '—'}</td>
+                      <td className="px-4 py-3">{(b as any).customerId?.phone || b.customerPhone || '—'}</td>
                       <td className="px-4 py-3">{formatDateIST(b.checkIn)}</td>
                       <td className="px-4 py-3">{formatDateIST(b.checkOut)}</td>
                       <td className="px-4 py-3">

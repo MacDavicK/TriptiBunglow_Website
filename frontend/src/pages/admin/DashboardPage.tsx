@@ -141,22 +141,29 @@ export function DashboardPage() {
     [blocked2],
   );
 
-  const bookings = bookingsData?.data ?? [];
+  const bookings = useMemo(() => bookingsData?.data ?? [], [bookingsData?.data]);
 
-  const getBookedDatesForProperty = (propertyId: string | undefined): Set<string> => {
-    if (!propertyId) return new Set();
+  const booked1Set = useMemo(() => {
+    if (!property1Id) return new Set<string>();
     const set = new Set<string>();
     for (const b of bookings) {
       if (!BOOKED_STATUSES.has(b.status)) continue;
-      if (!b.propertyIds?.includes(propertyId)) continue;
-      const dates = generateDateRange(b.checkIn, b.checkOut);
-      dates.forEach((d) => set.add(d));
+      if (!b.propertyIds?.includes(property1Id)) continue;
+      generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
     }
     return set;
-  };
+  }, [bookings, property1Id]);
 
-  const booked1Set = useMemo(() => getBookedDatesForProperty(property1Id), [bookings, property1Id]);
-  const booked2Set = useMemo(() => getBookedDatesForProperty(property2Id), [bookings, property2Id]);
+  const booked2Set = useMemo(() => {
+    if (!property2Id) return new Set<string>();
+    const set = new Set<string>();
+    for (const b of bookings) {
+      if (!BOOKED_STATUSES.has(b.status)) continue;
+      if (!b.propertyIds?.includes(property2Id)) continue;
+      generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
+    }
+    return set;
+  }, [bookings, property2Id]);
 
   if (error) {
     return (
