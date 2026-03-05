@@ -4,7 +4,7 @@ export const API_BASE_URL =
 // Razorpay disabled — manual UPI payment active
 // export const RAZORPAY_KEY_ID = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || '';
 
-export const PROPERTY_SLUGS = ['tripti-bungalow', 'spandan-bungalow'] as const;
+export const PROPERTY_SLUGS = ['tripti-bungalow-15', 'tripti-bungalow-14'] as const;
 
 export const BOOKING_STATUSES = [
   'hold',

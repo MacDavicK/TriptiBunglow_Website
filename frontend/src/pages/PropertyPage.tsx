@@ -11,9 +11,10 @@ import { Card } from '@/components/ui/Card';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ImageSlideshow } from '@/components/ui/ImageSlideshow';
 import type { DateRange } from 'react-day-picker';
 
-const RATE_PAISE = 3000000;
+const RATE_PAISE = 4000000;
 const DEPOSIT_PAISE = 500000;
 
 export function PropertyPage() {
@@ -69,13 +70,13 @@ export function PropertyPage() {
   return (
     <PageContainer>
       <div className="py-6">
-        <div className="aspect-video max-h-96 w-full overflow-hidden rounded-xl bg-gray-200">
-          {property.photos?.[0] ? (
-            <img src={property.photos[0]} alt={property.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">No image</div>
-          )}
-        </div>
+        <ImageSlideshow
+          images={property.photos ?? []}
+          alt={property.name}
+          variant="card"
+          interval={5000}
+          className="max-h-96 rounded-xl"
+        />
         <div className="mt-6 grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <h1 className="text-2xl font-bold text-gray-900">{property.name}</h1>

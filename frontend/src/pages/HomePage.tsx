@@ -5,23 +5,27 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { ImageSlideshow } from '@/components/ui/ImageSlideshow';
 import type { PropertyListItem } from '@shared/types';
+
+// TODO: Replace with dynamic images from API when property photos are uploaded
+const HERO_IMAGES: string[] = [];
 
 const PLACEHOLDER_PROPERTIES: PropertyListItem[] = [
   {
     _id: '1',
-    name: 'Tripti Bungalow',
-    slug: 'tripti-bungalow',
-    ratePerNight: 3000000,
+    name: 'Tripti Bungalow, No. 15',
+    slug: 'tripti-bungalow-15',
+    ratePerNight: 4000000,
     maxGuests: 50,
     photos: [],
     amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
   },
   {
     _id: '2',
-    name: 'Spandan Bungalow',
-    slug: 'spandan-bungalow',
-    ratePerNight: 3000000,
+    name: 'Tripti Bungalow, No. 14',
+    slug: 'tripti-bungalow-14',
+    ratePerNight: 4000000,
     maxGuests: 50,
     photos: [],
     amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
@@ -35,24 +39,29 @@ export function HomePage() {
 
   return (
     <PageContainer>
-      <section className="py-12 md:py-20">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-            Vacation Bungalows in Thane
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Two spacious bungalows in Thane, Maharashtra — with large lawns, fully equipped
-            kitchens, and room for up to 50 guests. Perfect for family gatherings, parties, and
-            weekend getaways.
-          </p>
-          <Link
-            to="/property/tripti-bungalow"
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-          >
-            View Properties
-          </Link>
-        </div>
-      </section>
+      <ImageSlideshow
+        images={HERO_IMAGES}
+        alt="Tripti and Spandan Bungalows"
+        variant="hero"
+        interval={6000}
+        overlay={
+          <div className="px-6 pb-12 pt-4 text-center md:pb-16">
+            <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-lg md:text-5xl">
+              Vacation Bungalows in Thane
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base text-white/90 drop-shadow md:text-lg">
+              Two spacious bungalows with large lawns, fully equipped kitchens,
+              and room for up to 50 guests. Perfect for family gatherings, parties, and weekend getaways.
+            </p>
+            <Link
+              to="/property/tripti-bungalow-15"
+              className="mt-6 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-base font-semibold text-gray-900 shadow-lg transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+            >
+              View Properties
+            </Link>
+          </div>
+        }
+      />
 
       {error && (
         <ErrorBanner
@@ -69,19 +78,12 @@ export function HomePage() {
             ? Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)
             : list.map((property) => (
                 <Card key={property._id} className="overflow-hidden">
-                  <div className="aspect-video bg-gray-200">
-                    {property.photos?.[0] ? (
-                      <img
-                        src={property.photos[0]}
-                        alt={property.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-gray-400">
-                        No image
-                      </div>
-                    )}
-                  </div>
+                  <ImageSlideshow
+                    images={property.photos ?? []}
+                    alt={property.name}
+                    variant="card"
+                    interval={0}
+                  />
                   <div className="mt-4">
                     <h3 className="text-lg font-semibold text-gray-900">{property.name}</h3>
                     <p className="mt-1 text-sm text-gray-600">

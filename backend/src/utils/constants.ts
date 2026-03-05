@@ -61,6 +61,6 @@ export const IdType = {
 export const ID_TYPE_VALUES = Object.values(IdType);
 
 // Monetary values in paise
-export const RATE_PER_NIGHT = 3000000; // ₹30,000
+export const RATE_PER_NIGHT = 4000000; // ₹40,000
 export const SECURITY_DEPOSIT = 500000; // ₹5,000
 export const HOLD_EXPIRY_SECONDS = 172800; // 48 hours — manual UPI payment window

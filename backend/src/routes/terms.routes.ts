@@ -5,7 +5,7 @@ const router = Router();
 const TERMS_AND_CONDITIONS = {
   version: '1.1',
   effectiveDate: '2026-02-14',
-  title: 'Terms and Conditions – Tripti & Spandan Bungalow',
+  title: 'Terms and Conditions – Tripti Bungalow (No. 14 & 15)',
   consentStatement:
     'I have read and agree to the Terms and Conditions. I consent to the collection and processing of my personal data (Aadhaar, contact details) for booking verification and legal compliance under the Digital Personal Data Protection Act, 2023.',
   rules: [

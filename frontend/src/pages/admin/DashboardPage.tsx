@@ -12,7 +12,7 @@ import type { BookingStatusForBadge } from '@/utils/constants';
 
 const PLACEHOLDER_STATS = {
   totalBookingsThisMonth: 12,
-  revenueThisMonth: 3000000,
+  revenueThisMonth: 4000000,
   upcomingBookings: 5,
   occupancyRate: 68,
   recentBookings: [
@@ -27,7 +27,7 @@ const PLACEHOLDER_STATS = {
       nights: 2,
       bookingType: 'standard' as const,
       status: 'confirmed' as BookingStatusForBadge,
-      totalCharged: 3000000,
+      totalCharged: 4000000,
       createdAt: '2026-02-10T00:00:00.000Z',
     },
   ],

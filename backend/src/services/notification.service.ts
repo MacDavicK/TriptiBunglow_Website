@@ -227,7 +227,7 @@ export const sendBookingPendingEmail = async (info: {
         </ul>
         <p>Please do not make any duplicate payments. If there is an issue with your payment, we will reach out to you.</p>
         <p style="color: #718096; font-size: 14px; margin-top: 24px;">
-          Thank you for choosing Tripti & Spandan Bungalow.
+          Thank you for choosing Tripti Bungalow (No. 14 & 15).
         </p>
       </div>
     `;

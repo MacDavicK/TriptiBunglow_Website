@@ -23,7 +23,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { CreateBookingRequest } from '@shared/types';
 
-const RATE_PAISE = 3000000;
+const RATE_PAISE = 4000000;
 const DEPOSIT_PAISE = 500000;
 const IST = 'Asia/Kolkata';
 
