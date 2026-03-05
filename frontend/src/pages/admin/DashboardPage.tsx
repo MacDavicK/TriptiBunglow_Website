@@ -68,7 +68,7 @@ export function DashboardPage() {
 
   const { data: bookingsData } = useQuery({
     queryKey: ['admin', 'bookings', 'calendar', monthStart, monthEnd],
-    queryFn: () => getBookings({ from: monthStart, to: monthEnd, limit: 100 }),
+    queryFn: () => getBookings({ fromDate: monthStart, toDate: monthEnd, limit: 100 }),
     enabled: Boolean(property1Id),
   });
 

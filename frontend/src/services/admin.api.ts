@@ -65,8 +65,8 @@ export interface GetBookingsParams {
   limit?: number;
   status?: string;
   propertyId?: string;
-  from?: string;
-  to?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export async function getBookings(params: GetBookingsParams = {}): Promise<{

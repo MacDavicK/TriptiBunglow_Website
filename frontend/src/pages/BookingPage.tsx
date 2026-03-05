@@ -181,15 +181,6 @@ export function BookingPage() {
     return booked;
   }, [availability]);
 
-  useEffect(() => {
-    if (dateRange?.from) {
-      datesForm.setValue('checkIn', format(dateRange.from, 'yyyy-MM-dd'));
-    }
-    if (dateRange?.to) {
-      datesForm.setValue('checkOut', format(dateRange.to, 'yyyy-MM-dd'));
-    }
-  }, [dateRange, datesForm]);
-
   const { data: paymentInfo, isLoading: loadingPaymentInfo } = useQuery({
     queryKey: ['payment-info'],
     queryFn: getPaymentInfo,
@@ -244,6 +235,15 @@ export function BookingPage() {
     resolver: zodResolver(consentSchema),
     defaultValues: { consent: false },
   });
+
+  useEffect(() => {
+    if (dateRange?.from) {
+      datesForm.setValue('checkIn', format(dateRange.from, 'yyyy-MM-dd'));
+    }
+    if (dateRange?.to) {
+      datesForm.setValue('checkOut', format(dateRange.to, 'yyyy-MM-dd'));
+    }
+  }, [dateRange, datesForm]);
 
   /* ─── COMPUTED ─── */
 

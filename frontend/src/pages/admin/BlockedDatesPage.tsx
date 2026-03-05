@@ -35,7 +35,7 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
 
   const { data: bookingsData } = useQuery({
     queryKey: ['admin', 'bookings', 'blocked-page', propertyId, monthStart, monthEnd],
-    queryFn: () => getBookings({ from: monthStart, to: monthEnd, limit: 100 }),
+    queryFn: () => getBookings({ fromDate: monthStart, toDate: monthEnd, limit: 100 }),
     enabled: Boolean(propertyId),
   });
 
