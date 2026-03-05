@@ -21,6 +21,8 @@ export interface AdminCalendarProps {
   title: string;
   dateMap: Record<string, CalendarDayInfo>;
   selectedDates?: string[];
+  unblockSelectedDates?: string[];
+  onDateClick?: (dateStr: string) => void;
   onDateSelect?: (dateStr: string) => void;
   onDateUnblock?: (dateStr: string, recordId: string) => void;
   readOnly?: boolean;
@@ -34,6 +36,8 @@ export function AdminCalendar({
   title,
   dateMap,
   selectedDates = [],
+  unblockSelectedDates = [],
+  onDateClick,
   onDateSelect,
   onDateUnblock,
   readOnly = false,
@@ -55,9 +59,15 @@ export function AdminCalendar({
   }, [month]);
 
   const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
+  const unblockSelectedSet = useMemo(() => new Set(unblockSelectedDates), [unblockSelectedDates]);
 
   const handleCellClick = (dateStr: string) => {
     if (readOnly) return;
+
+    if (onDateClick) {
+      onDateClick(dateStr);
+      return;
+    }
 
     const info = dateMap[dateStr];
     const status = info?.status ?? 'available';
@@ -130,13 +140,16 @@ export function AdminCalendar({
             const info = dateMap[dateStr];
             const status = info?.status ?? 'available';
             const isSelected = selectedSet.has(dateStr);
+            const isUnblockSelected = unblockSelectedSet.has(dateStr);
             const isToday = dateStr === today;
             const isPast = isBefore(new Date(dateStr), todayDate) && !isToday;
 
             let cellClass =
               'flex items-center justify-center min-h-[3.5rem] min-w-[3.5rem] rounded-lg text-lg font-medium transition-colors select-none';
 
-            if (isSelected) {
+            if (isUnblockSelected) {
+              cellClass += ' bg-amber-200 border-2 border-amber-500 text-amber-900 font-semibold';
+            } else if (isSelected) {
               cellClass += ' bg-blue-100 border-2 border-blue-400 text-blue-900 font-semibold';
             } else if (status === 'booked') {
               cellClass += ' bg-green-100 border border-green-300 text-green-900 font-semibold';
@@ -158,8 +171,11 @@ export function AdminCalendar({
               cellClass += ' cursor-pointer hover:brightness-95';
             }
 
-            const statusLabel =
-              isSelected ? 'Selected' : status.charAt(0).toUpperCase() + status.slice(1);
+            const statusLabel = isUnblockSelected
+              ? 'Selected for unblocking'
+              : isSelected
+                ? 'Selected for blocking'
+                : status.charAt(0).toUpperCase() + status.slice(1);
             const ariaLabel = `${format(new Date(dateStr), 'MMMM d, yyyy')} - ${statusLabel}`;
 
             return (

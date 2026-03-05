@@ -16,7 +16,9 @@ interface BungalowCalendarProps {
 
 function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
   const [month, setMonth] = useState(new Date());
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [datesToBlock, setDatesToBlock] = useState<string[]>([]);
+  const [datesToUnblock, setDatesToUnblock] = useState<string[]>([]);
+  const [isUnblocking, setIsUnblocking] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: blockedList, error, refetch } = useQuery({
@@ -30,18 +32,9 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates', propertyId] });
       toast.success(`Dates blocked for ${propertyName}`);
-      setSelectedDates([]);
+      setDatesToBlock([]);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to block dates'),
-  });
-
-  const unblockMutation = useMutation({
-    mutationFn: (id: string) => unblockDate(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates', propertyId] });
-      toast.success('Date unblocked');
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to unblock'),
   });
 
   const dateMap = useMemo(() => {
@@ -52,18 +45,53 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
     return map;
   }, [blockedList]);
 
-  const handleDateSelect = (dateStr: string) => {
-    setSelectedDates((prev) =>
+  const handleDateClick = (dateStr: string) => {
+    const info = dateMap[dateStr];
+
+    if (info?.status === 'booked') return;
+
+    if (info?.status === 'blocked') {
+      setDatesToUnblock((prev) =>
+        prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr],
+      );
+      return;
+    }
+
+    setDatesToBlock((prev) =>
       prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr],
     );
   };
 
-  const handleDateUnblock = (_dateStr: string, recordId: string) => {
-    unblockMutation.mutate(recordId);
+  const handleBlockDates = () => {
+    if (datesToBlock.length) blockMutation.mutate(datesToBlock);
   };
 
-  const handleBlock = () => {
-    if (selectedDates.length) blockMutation.mutate(selectedDates);
+  const handleUnblockDates = async () => {
+    const recordIds = datesToUnblock
+      .map((dateStr) => {
+        const record = blockedList?.find((b) => b.date.slice(0, 10) === dateStr);
+        return record?._id;
+      })
+      .filter(Boolean) as string[];
+
+    if (recordIds.length === 0) return;
+
+    setIsUnblocking(true);
+    try {
+      await Promise.all(recordIds.map((id) => unblockDate(id)));
+      queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates', propertyId] });
+      toast.success(`${recordIds.length} date${recordIds.length !== 1 ? 's' : ''} unblocked`);
+      setDatesToUnblock([]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to unblock dates');
+    } finally {
+      setIsUnblocking(false);
+    }
+  };
+
+  const clearAll = () => {
+    setDatesToBlock([]);
+    setDatesToUnblock([]);
   };
 
   if (error) {
@@ -82,24 +110,33 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
       <AdminCalendar
         title={propertyName}
         dateMap={dateMap}
-        selectedDates={selectedDates}
-        onDateSelect={handleDateSelect}
-        onDateUnblock={handleDateUnblock}
+        selectedDates={datesToBlock}
+        unblockSelectedDates={datesToUnblock}
+        onDateClick={handleDateClick}
         month={month}
         onMonthChange={setMonth}
       />
-      <div className="mt-4 flex items-center gap-4">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button
           variant="primary"
-          onClick={handleBlock}
-          disabled={selectedDates.length === 0}
+          onClick={handleBlockDates}
+          disabled={datesToBlock.length === 0}
           loading={blockMutation.isPending}
           className="py-3 px-6"
         >
-          Block {selectedDates.length} selected date{selectedDates.length !== 1 ? 's' : ''}
+          Block {datesToBlock.length} date{datesToBlock.length !== 1 ? 's' : ''}
         </Button>
-        {selectedDates.length > 0 && (
-          <Button variant="secondary" onClick={() => setSelectedDates([])}>
+        <Button
+          variant="danger"
+          onClick={handleUnblockDates}
+          disabled={datesToUnblock.length === 0}
+          loading={isUnblocking}
+          className="py-3 px-6"
+        >
+          Unblock {datesToUnblock.length} date{datesToUnblock.length !== 1 ? 's' : ''}
+        </Button>
+        {(datesToBlock.length > 0 || datesToUnblock.length > 0) && (
+          <Button variant="secondary" onClick={clearAll} className="py-3 px-6">
             Clear selection
           </Button>
         )}
@@ -116,7 +153,7 @@ export function BlockedDatesPage() {
     <PageContainer>
       <h1 className="text-2xl font-bold text-gray-900">Blocked Dates</h1>
       <p className="mt-1 text-base text-gray-600">
-        Click available dates to select them for blocking. Click red blocked dates to unblock.
+        Click available dates to select for blocking (blue). Click blocked dates to select for unblocking (amber).
       </p>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
@@ -130,6 +167,10 @@ export function BlockedDatesPage() {
         <span className="flex items-center gap-2">
           <span className="inline-block h-5 w-5 rounded-md bg-red-100 border border-red-300" />
           Blocked
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-5 w-5 rounded-md bg-amber-200 border-2 border-amber-500" />
+          Selected for unblocking
         </span>
         <span className="flex items-center gap-2">
           <span className="inline-block h-5 w-5 rounded-md bg-blue-100 border-2 border-blue-400" />
