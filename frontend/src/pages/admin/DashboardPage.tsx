@@ -108,51 +108,55 @@ export function DashboardPage() {
   const { data: properties } = useProperties();
   const propertyList = (properties as { _id: string; name: string; slug: string }[] | undefined) ?? [];
 
+  const property1Id = propertyList[0]?._id;
+  const property2Id = propertyList[1]?._id;
+
   const monthStart = format(startOfMonth(month), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(month), 'yyyy-MM-dd');
 
   const { data: bookingsData } = useQuery({
     queryKey: ['admin', 'bookings', 'calendar', monthStart, monthEnd],
     queryFn: () => getBookings({ from: monthStart, to: monthEnd, limit: 100 }),
-    enabled: propertyList.length > 0,
+    enabled: Boolean(property1Id),
   });
 
-  const blockedQueries = propertyList.map((p) => {
-    return useQuery({
-      queryKey: ['admin', 'blocked-dates', p._id],
-      queryFn: () => getBlockedDates(p._id),
-      enabled: Boolean(p._id),
-    });
+  const { data: blocked1 } = useQuery({
+    queryKey: ['admin', 'blocked-dates', property1Id],
+    queryFn: () => getBlockedDates(property1Id!),
+    enabled: Boolean(property1Id),
   });
 
-  const { bookedByProperty, blockedByProperty } = useMemo(() => {
-    const bookedMap = new Map<string, Set<string>>();
-    const blockedMap = new Map<string, Set<string>>();
+  const { data: blocked2 } = useQuery({
+    queryKey: ['admin', 'blocked-dates', property2Id],
+    queryFn: () => getBlockedDates(property2Id!),
+    enabled: Boolean(property2Id),
+  });
 
-    for (const p of propertyList) {
-      bookedMap.set(p._id, new Set());
-      blockedMap.set(p._id, new Set());
-    }
+  const blocked1Set = useMemo(
+    () => new Set((blocked1 ?? []).map((d) => d.date.slice(0, 10))),
+    [blocked1],
+  );
+  const blocked2Set = useMemo(
+    () => new Set((blocked2 ?? []).map((d) => d.date.slice(0, 10))),
+    [blocked2],
+  );
 
-    const bookings = bookingsData?.data ?? [];
+  const bookings = bookingsData?.data ?? [];
+
+  const getBookedDatesForProperty = (propertyId: string | undefined): Set<string> => {
+    if (!propertyId) return new Set();
+    const set = new Set<string>();
     for (const b of bookings) {
       if (!BOOKED_STATUSES.has(b.status)) continue;
+      if (!b.propertyIds?.includes(propertyId)) continue;
       const dates = generateDateRange(b.checkIn, b.checkOut);
-      for (const pid of b.propertyIds) {
-        const set = bookedMap.get(pid);
-        if (set) dates.forEach((d) => set.add(d));
-      }
+      dates.forEach((d) => set.add(d));
     }
+    return set;
+  };
 
-    blockedQueries.forEach((q, i) => {
-      const pid = propertyList[i]?._id;
-      if (!pid || !q.data) return;
-      const set = blockedMap.get(pid);
-      if (set) q.data.forEach((d) => set.add(d.date.slice(0, 10)));
-    });
-
-    return { bookedByProperty: bookedMap, blockedByProperty: blockedMap };
-  }, [propertyList, bookingsData, blockedQueries.map((q) => q.data)]);
+  const booked1Set = useMemo(() => getBookedDatesForProperty(property1Id), [bookings, property1Id]);
+  const booked2Set = useMemo(() => getBookedDatesForProperty(property2Id), [bookings, property2Id]);
 
   if (error) {
     return (
@@ -223,17 +227,26 @@ export function DashboardPage() {
       <div className="mt-8">
         <h2 className="text-xl font-bold text-gray-900">Availability Overview</h2>
         <div className="mt-4 grid gap-6 md:grid-cols-2">
-          {propertyList.map((p) => (
+          {property1Id && (
             <PropertyCalendar
-              key={p._id}
-              propertyId={p._id}
-              propertyLabel={p.name.includes('15') ? 'No. 15' : 'No. 14'}
+              propertyId={property1Id}
+              propertyLabel={propertyList[0]?.name.includes('15') ? 'No. 15' : 'No. 14'}
               month={month}
               onMonthChange={setMonth}
-              bookedDates={bookedByProperty.get(p._id) ?? new Set()}
-              blockedDates={blockedByProperty.get(p._id) ?? new Set()}
+              bookedDates={booked1Set}
+              blockedDates={blocked1Set}
             />
-          ))}
+          )}
+          {property2Id && (
+            <PropertyCalendar
+              propertyId={property2Id}
+              propertyLabel={propertyList[1]?.name.includes('15') ? 'No. 15' : 'No. 14'}
+              month={month}
+              onMonthChange={setMonth}
+              bookedDates={booked2Set}
+              blockedDates={blocked2Set}
+            />
+          )}
         </div>
 
         {/* Legend */}
