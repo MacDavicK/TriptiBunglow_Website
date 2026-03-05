@@ -10,6 +10,7 @@ export interface Customer {
   aadhaarDocumentUrl?: string;
   idDocumentUrl?: string;     // Legacy; prefer aadhaarDocumentUrl
   dataRetentionExpiresAt: string;
+  dataCleanupWarningAt?: string;
   createdAt: string;
   updatedAt: string;
 }

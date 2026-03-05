@@ -12,6 +12,7 @@ export interface ICustomer extends Document {
   aadhaarDocumentUrl?: string;
   idDocumentUrl?: string;
   dataRetentionExpiresAt: Date;
+  dataCleanupWarningAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,7 @@ const customerSchema = new Schema<ICustomer>(
     aadhaarDocumentUrl: { type: String },
     idDocumentUrl: { type: String },
     dataRetentionExpiresAt: { type: Date, required: true },
+    dataCleanupWarningAt: { type: Date },
   },
   { timestamps: true }
 );

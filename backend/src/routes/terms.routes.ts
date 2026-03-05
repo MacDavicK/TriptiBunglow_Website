@@ -3,15 +3,15 @@ import { Router, Request, Response } from 'express';
 const router = Router();
 
 const TERMS_AND_CONDITIONS = {
-  version: '1.1',
-  effectiveDate: '2026-02-14',
+  version: '1.2',
+  effectiveDate: '2026-03-05',
   title: 'Terms and Conditions – Tripti Bungalow (No. 14 & 15)',
   consentStatement:
     'I have read and agree to the Terms and Conditions. I consent to the collection and processing of my personal data (Aadhaar, contact details) for booking verification and legal compliance under the Digital Personal Data Protection Act, 2023.',
   rules: [
     {
       id: 1,
-      text: 'A minimum of 2 valid Aadhaar card copies (UID and VID clearly visible) are required at the time of booking — one from the primary guest and at least one from an additional guest. Foreign nationals must provide a valid passport.',
+      text: 'A minimum of 2 valid Aadhaar card copies (UID and VID clearly visible) are required at the time of booking — one from the primary guest and at least one from an additional guest. Foreign nationals must provide a valid passport. Your Aadhaar data (number and uploaded document) will be automatically deleted 30 days after your check-out date, in compliance with the Digital Personal Data Protection Act, 2023.',
     },
     {
       id: 2,
@@ -63,7 +63,7 @@ const TERMS_AND_CONDITIONS = {
     },
     {
       id: 14,
-      text: 'By confirming the booking, the guest consents to the collection and processing of personal data (Aadhaar, name, contact details) for booking verification and legal compliance, in accordance with the Digital Personal Data Protection Act, 2023. Personal data is retained for 3 years after check-out and then automatically anonymised. The guest may request access to, correction of, or deletion of their data by contacting the property manager.',
+      text: 'By confirming the booking, the guest consents to the collection and processing of personal data (Aadhaar, name, contact details) for booking verification and legal compliance, in accordance with the Digital Personal Data Protection Act, 2023. Identity documents and Aadhaar data are retained for 30 days after check-out and then automatically deleted. You will receive an email notification 48 hours before deletion. Booking records (without ID data) are retained for 3 years for tax and accounting purposes. The guest may request access to, correction of, or deletion of their data by contacting the property manager.',
     },
   ],
 };

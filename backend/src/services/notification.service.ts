@@ -474,3 +474,42 @@ export const generateWhatsAppLink = (phone: string, message: string): string => 
   const cleanPhone = phone.replace(/[^0-9]/g, '');
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 };
+
+/**
+ * Send 48-hour data cleanup warning email to customer (DPDP Act compliance).
+ * Re-throws on failure so the cleanup job knows the warning was NOT sent.
+ */
+export const sendDataCleanupWarning = async (info: {
+  customerName: string;
+  customerEmail: string;
+  retentionExpiredAt: Date;
+}): Promise<void> => {
+  if (!resend) {
+    logger.info('Resend not configured — skipping data cleanup warning email');
+    return;
+  }
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2d3748;">Data Retention Notice</h2>
+      <p>Dear ${info.customerName},</p>
+      <p>In accordance with our data retention policy and the Digital Personal Data Protection Act, 2023,
+         your identity documents (Aadhaar/ID copies) submitted during your stay at Tripti Bungalow
+         will be <strong>automatically deleted within 48 hours</strong>.</p>
+      <p>Your booking records and basic contact information (name, email, phone) will be retained for our records.</p>
+      <p>If you have any questions about your data, please contact the property manager.</p>
+      <p style="color: #718096; font-size: 14px; margin-top: 24px;">
+        Thank you for choosing Tripti Bungalow (No. 14 &amp; 15).
+      </p>
+    </div>
+  `;
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: info.customerEmail,
+    subject: 'Tripti Bungalow — Your ID Documents Will Be Deleted Shortly',
+    html,
+  });
+
+  logger.info({ to: info.customerEmail }, 'Data cleanup warning email sent');
+};

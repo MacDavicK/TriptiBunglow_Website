@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spinner } from '@/components/ui/Spinner';
+import { FileText } from 'lucide-react';
+import type { Customer } from '@shared/types';
 import type { BookingStatusForBadge } from '@/utils/constants';
 import toast from 'react-hot-toast';
 
@@ -99,10 +101,16 @@ export function BookingDetailPage() {
 
   const status = booking.status as BookingStatusForBadge;
 
+  // The API populates customerId as a full Customer object
+  const customer: Customer | null =
+    typeof booking.customerId === 'object' && booking.customerId !== null
+      ? (booking.customerId as unknown as Customer)
+      : null;
+
   return (
     <PageContainer>
       <Link to="/admin/bookings" className="text-sm text-indigo-600 hover:underline">
-        ← Back to bookings
+        &larr; Back to bookings
       </Link>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -178,6 +186,36 @@ export function BookingDetailPage() {
           </dl>
         </Card>
 
+        {customer && (
+          <Card>
+            <h2 className="font-semibold text-gray-900">Customer information</h2>
+            <dl className="mt-4 space-y-2 text-sm">
+              <div>
+                <dt className="text-gray-500">Name</dt>
+                <dd>{customer.name}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Email</dt>
+                <dd>{customer.email}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Phone</dt>
+                <dd>{customer.phone}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Nationality</dt>
+                <dd className="capitalize">{customer.nationality}</dd>
+              </div>
+              {customer.address && (
+                <div>
+                  <dt className="text-gray-500">Address</dt>
+                  <dd>{customer.address}</dd>
+                </div>
+              )}
+            </dl>
+          </Card>
+        )}
+
         <Card>
           <h2 className="font-semibold text-gray-900">Actions</h2>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -187,7 +225,7 @@ export function BookingDetailPage() {
                 onClick={() => confirmPaymentMutation.mutate()}
                 loading={confirmPaymentMutation.isPending}
               >
-                ✅ Confirm Payment
+                Confirm Payment
               </Button>
             )}
             {status === 'pending_approval' && (
@@ -197,7 +235,7 @@ export function BookingDetailPage() {
                   onClick={() => approveMutation.mutate()}
                   loading={approveMutation.isPending}
                 >
-                  Approve (→ Pending Payment)
+                  Approve
                 </Button>
                 <Button
                   variant="danger"
@@ -227,6 +265,85 @@ export function BookingDetailPage() {
               </Button>
             )}
           </div>
+        </Card>
+      </div>
+
+      {/* Identity Documents */}
+      <div className="mt-6">
+        <Card>
+          <h2 className="font-semibold text-gray-900">Identity documents</h2>
+
+          {customer && (customer.aadhaarDocumentUrl || customer.idDocumentUrl) ? (
+            <div className="mt-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">
+                  Primary guest — {customer.name}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {customer.aadhaarDocumentUrl && (
+                    <a
+                      href={customer.aadhaarDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View Aadhaar Document
+                    </a>
+                  )}
+                  {customer.idDocumentUrl && (
+                    <a
+                      href={customer.idDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View ID Document
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {booking.additionalGuests && booking.additionalGuests.length > 0 && (
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="text-sm font-medium text-gray-700">Additional guests</h3>
+                  <div className="mt-2 space-y-3">
+                    {booking.additionalGuests.map((guest, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{guest.name}</span>
+                        {guest.aadhaarDocumentUrl ? (
+                          <a
+                            href={guest.aadhaarDocumentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            View Aadhaar
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">No document</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">
+              {customer
+                ? 'Identity documents have been removed per data retention policy.'
+                : 'Customer data not available.'}
+            </p>
+          )}
+
+          {customer?.dataRetentionExpiresAt && (
+            <p className="mt-4 text-xs text-gray-400">
+              Documents auto-delete after {formatDateIST(customer.dataRetentionExpiresAt)}
+            </p>
+          )}
         </Card>
       </div>
     </PageContainer>

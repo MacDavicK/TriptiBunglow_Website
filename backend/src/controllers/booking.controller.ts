@@ -83,8 +83,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     );
 
     // Create customer
-    const dataRetentionExpiresAt = new Date();
-    dataRetentionExpiresAt.setFullYear(dataRetentionExpiresAt.getFullYear() + 3);
+    // DPDP Act: Aadhaar data retained 30 days after check-out for dispute resolution
+    const dataRetentionExpiresAt = new Date(checkOutDate);
+    dataRetentionExpiresAt.setDate(dataRetentionExpiresAt.getDate() + 30);
 
     const customer = await Customer.create({
       name: customerData.name,
