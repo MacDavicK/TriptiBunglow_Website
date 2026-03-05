@@ -384,6 +384,90 @@ export const sendAdminNewBookingAlert = async (info: {
 };
 
 /**
+ * Emergency notification to admin when a booking submission fails
+ * AFTER the customer has already provided payment info.
+ * This ensures no paid customer is left without follow-up.
+ */
+export const sendBookingFailureAlert = async (info: {
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  upiReference?: string;
+  propertyNames?: string[];
+  checkIn?: string;
+  checkOut?: string;
+  errorMessage: string;
+  rawPayload?: string;
+}): Promise<void> => {
+  if (!resend) {
+    logger.error('Resend not configured — CANNOT send booking failure alert. Manual intervention required.');
+    logger.error({ ...info }, 'BOOKING FAILURE — admin must follow up manually');
+    return;
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    logger.error('ADMIN_EMAIL not configured — CANNOT send booking failure alert.');
+    logger.error({ ...info }, 'BOOKING FAILURE — admin must follow up manually');
+    return;
+  }
+
+  try {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #e53e3e;">Booking Submission Failed — Customer May Have Paid</h2>
+        <p style="color: #718096;">
+          A customer attempted to submit a booking but the system encountered an error.
+          If they already made a UPI payment, they need to be contacted for a manual booking or refund.
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          ${info.customerName ? `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 0; font-weight: bold;">Guest Name</td><td>${info.customerName}</td></tr>` : ''}
+          ${info.customerPhone ? `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 0; font-weight: bold;">Phone</td><td>${info.customerPhone}</td></tr>` : ''}
+          ${info.customerEmail ? `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 0; font-weight: bold;">Email</td><td>${info.customerEmail}</td></tr>` : ''}
+          ${info.upiReference ? `<tr style="border-bottom: 1px solid #e2e8f0; background: #fffaf0;"><td style="padding: 8px 0; font-weight: bold;">UPI Reference</td><td style="font-family: monospace;">${info.upiReference}</td></tr>` : ''}
+          ${info.checkIn ? `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 0; font-weight: bold;">Check-in</td><td>${info.checkIn}</td></tr>` : ''}
+          ${info.checkOut ? `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 0; font-weight: bold;">Check-out</td><td>${info.checkOut}</td></tr>` : ''}
+          <tr style="border-bottom: 1px solid #e2e8f0; background: #fff5f5;">
+            <td style="padding: 8px 0; font-weight: bold;">Error</td>
+            <td style="color: #e53e3e;">${info.errorMessage}</td>
+          </tr>
+        </table>
+
+        ${info.upiReference ? `
+        <div style="background: #fffaf0; border: 1px solid #f6ad55; border-radius: 8px; padding: 16px; margin: 16px 0;">
+          <p style="margin: 0; font-weight: bold; color: #c05621;">Action Required:</p>
+          <p style="margin: 8px 0 0 0; color: #744210;">
+            This customer provided UPI reference <strong>${info.upiReference}</strong>.
+            If a payment was received, either manually create their booking or process a refund within 24 hours.
+          </p>
+        </div>
+        ` : ''}
+
+        ${info.customerPhone ? `
+        <p style="margin-top: 16px;">
+          <a href="https://wa.me/91${info.customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${info.customerName || ''}, we noticed an issue with your bungalow booking. We are looking into it and will get back to you shortly.`)}" style="display: inline-block; padding: 10px 20px; background: #25D366; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            Contact Guest on WhatsApp
+          </a>
+        </p>
+        ` : ''}
+      </div>
+    `;
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: adminEmail,
+      subject: `BOOKING FAILED — ${info.customerName || 'Unknown Guest'} ${info.upiReference ? `(UPI: ${info.upiReference})` : ''}`,
+      html,
+    });
+
+    logger.info({ customerPhone: info.customerPhone, upiReference: info.upiReference }, 'Booking failure alert sent to admin');
+  } catch (err) {
+    logger.error({ err, ...info }, 'CRITICAL: Failed to send booking failure alert AND booking failed. Manual intervention required.');
+  }
+};
+
+/**
  * Generate a WhatsApp deep link for contacting a customer.
  */
 export const generateWhatsAppLink = (phone: string, message: string): string => {
