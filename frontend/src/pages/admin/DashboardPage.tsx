@@ -100,7 +100,10 @@ export function DashboardPage() {
     const set = new Set<string>();
     for (const b of bookings) {
       if (!BOOKED_STATUSES.has(b.status)) continue;
-      if (!b.propertyIds?.includes(property1Id)) continue;
+      const pids = (b.propertyIds ?? []).map((p: any) =>
+        typeof p === 'string' ? p : (p._id || p.id || String(p))
+      );
+      if (!pids.includes(property1Id)) continue;
       generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
     }
     return set;
@@ -111,7 +114,10 @@ export function DashboardPage() {
     const set = new Set<string>();
     for (const b of bookings) {
       if (!BOOKED_STATUSES.has(b.status)) continue;
-      if (!b.propertyIds?.includes(property2Id)) continue;
+      const pids = (b.propertyIds ?? []).map((p: any) =>
+        typeof p === 'string' ? p : (p._id || p.id || String(p))
+      );
+      if (!pids.includes(property2Id)) continue;
       generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
     }
     return set;

@@ -32,9 +32,17 @@ export const listBookings = catchAsync(async (req: Request, res: Response) => {
   }
 
   if (fromDate || toDate) {
-    filter.checkIn = {};
-    if (fromDate) (filter.checkIn as Record<string, unknown>).$gte = new Date(fromDate as string);
-    if (toDate) (filter.checkIn as Record<string, unknown>).$lte = new Date(toDate as string);
+    const dateConditions: Record<string, unknown>[] = [];
+    if (fromDate) {
+      dateConditions.push({ checkOut: { $gt: new Date(fromDate as string) } });
+    }
+    if (toDate) {
+      dateConditions.push({ checkIn: { $lte: new Date(toDate as string) } });
+    }
+    if (dateConditions.length > 0) {
+      if (!filter.$and) filter.$and = [];
+      (filter.$and as Record<string, unknown>[]).push(...dateConditions);
+    }
   }
 
   const [bookings, total] = await Promise.all([

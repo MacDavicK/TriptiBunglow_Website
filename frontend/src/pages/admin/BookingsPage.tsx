@@ -67,6 +67,7 @@ export function BookingsPage() {
                 <th className="px-4 py-3">Booking ID</th>
                 <th className="px-4 py-3">Guest</th>
                 <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">Property</th>
                 <th className="px-4 py-3">Check-in</th>
                 <th className="px-4 py-3">Check-out</th>
                 <th className="px-4 py-3">Status</th>
@@ -86,6 +87,11 @@ export function BookingsPage() {
                       </td>
                       <td className="px-4 py-3">{(b as any).customerId?.name || b.customerName || '—'}</td>
                       <td className="px-4 py-3">{(b as any).customerId?.phone || b.customerPhone || '—'}</td>
+                      <td className="px-4 py-3">
+                        {(b.propertyIds ?? []).map((p: any) =>
+                          typeof p === 'string' ? p : (p.name || '—')
+                        ).join(', ')}
+                      </td>
                       <td className="px-4 py-3">{formatDateIST(b.checkIn)}</td>
                       <td className="px-4 py-3">{formatDateIST(b.checkOut)}</td>
                       <td className="px-4 py-3">

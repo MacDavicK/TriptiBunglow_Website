@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBlockedDates, blockDates, unblockDate } from '@/services/admin.api';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { getBlockedDates, blockDates, unblockDate, getBookings } from '@/services/admin.api';
 import { useProperties } from '@/hooks/useProperties';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
@@ -8,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { AdminCalendar, type CalendarDayInfo } from '@/components/admin/AdminCalendar';
 import toast from 'react-hot-toast';
+
+const BOOKED_STATUSES = new Set(['pending_payment', 'pending_approval', 'confirmed', 'checked_in']);
 
 interface BungalowCalendarProps {
   propertyId: string;
@@ -21,9 +24,18 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
   const [isUnblocking, setIsUnblocking] = useState(false);
   const queryClient = useQueryClient();
 
+  const monthStart = format(startOfMonth(month), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(month), 'yyyy-MM-dd');
+
   const { data: blockedList, error, refetch } = useQuery({
     queryKey: ['admin', 'blocked-dates', propertyId],
     queryFn: () => getBlockedDates(propertyId),
+    enabled: Boolean(propertyId),
+  });
+
+  const { data: bookingsData } = useQuery({
+    queryKey: ['admin', 'bookings', 'blocked-page', propertyId, monthStart, monthEnd],
+    queryFn: () => getBookings({ from: monthStart, to: monthEnd, limit: 100 }),
     enabled: Boolean(propertyId),
   });
 
@@ -39,11 +51,27 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
 
   const dateMap = useMemo(() => {
     const map: Record<string, CalendarDayInfo> = {};
+
+    const bookings = bookingsData?.data ?? [];
+    for (const b of bookings) {
+      if (!BOOKED_STATUSES.has(b.status)) continue;
+      const bPids = (b.propertyIds ?? []).map((p: any) =>
+        typeof p === 'string' ? p : (p._id || p.id || String(p))
+      );
+      if (!bPids.includes(propertyId)) continue;
+      const start = new Date(b.checkIn);
+      const end = new Date(b.checkOut);
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        map[format(new Date(d), 'yyyy-MM-dd')] = { status: 'booked' };
+      }
+    }
+
     (blockedList ?? []).forEach((d) => {
       map[d.date.slice(0, 10)] = { status: 'blocked', recordId: d._id };
     });
+
     return map;
-  }, [blockedList]);
+  }, [blockedList, bookingsData, propertyId]);
 
   const handleDateClick = (dateStr: string) => {
     const info = dateMap[dateStr];
@@ -164,6 +192,10 @@ export function BlockedDatesPage() {
 
       {/* Legend */}
       <div className="mt-8 flex flex-wrap items-center gap-6 text-base text-gray-700">
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-5 w-5 rounded-md bg-green-100 border border-green-300" />
+          Booked (cannot block)
+        </span>
         <span className="flex items-center gap-2">
           <span className="inline-block h-5 w-5 rounded-md bg-red-100 border border-red-300" />
           Blocked

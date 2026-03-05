@@ -26,7 +26,7 @@ export function PropertyPage() {
   const { data: property, isLoading: loadingProperty, error: propertyError } = useProperty(slug);
   const { data: availability, isLoading: loadingAvail } = useAvailability(
     property?._id,
-    month.getMonth(),
+    month.getMonth() + 1,
     month.getFullYear(),
     Boolean(property?._id)
   );
@@ -54,7 +54,9 @@ export function PropertyPage() {
     const hasStatusData = Boolean(availability?.dates);
     return (date: Date) => {
       const key = format(date, 'yyyy-MM-dd');
-      return hasStatusData ? bookedSet.has(key) : !availableSet.has(key);
+      return hasStatusData
+        ? (bookedSet.has(key) || pendingSet.has(key))
+        : !availableSet.has(key);
     };
   }, [availability?.dates, bookedSet, availableSet]);
 

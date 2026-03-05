@@ -128,6 +128,14 @@ export function BookingDetailPage() {
           <h2 className="font-semibold text-gray-900">Booking details</h2>
           <dl className="mt-4 space-y-2 text-sm">
             <div>
+              <dt className="text-gray-500">Property</dt>
+              <dd className="font-medium">
+                {((booking as any).propertyIds ?? []).map((p: any) =>
+                  typeof p === 'string' ? p : (p.name || '—')
+                ).join(' & ')}
+              </dd>
+            </div>
+            <div>
               <dt className="text-gray-500">Check-in</dt>
               <dd>{formatDateIST(booking.checkIn)}</dd>
             </div>
