@@ -186,6 +186,8 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
+    logger.error({ err: error, propertyIds, checkIn: req.body.checkIn, checkOut: req.body.checkOut }, 'Booking creation failed — original error');
+
     if (upiReference) {
       const sanitizedPayload = { ...req.body };
       if (sanitizedPayload.customer) {
