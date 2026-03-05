@@ -9,6 +9,8 @@ import { PropertyPage } from '@/pages/PropertyPage';
 import { BookingPage } from '@/pages/BookingPage';
 import { BookingConfirmationPage } from '@/pages/BookingConfirmationPage';
 import { PrivacyPolicyPage } from '@/pages/PrivacyPolicyPage';
+import { PropertiesPage } from '@/pages/PropertiesPage';
+import { ContactPage } from '@/pages/ContactPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { LoginPage } from '@/pages/admin/LoginPage';
 import { DashboardPage } from '@/pages/admin/DashboardPage';
@@ -31,6 +33,8 @@ const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'properties', element: <PropertiesPage /> },
+      { path: 'contact', element: <ContactPage /> },
       { path: 'property/:slug', element: <PropertyPage /> },
       { path: 'book/:slug', element: <BookingPage /> },
       { path: 'booking/confirmation/:bookingId', element: <BookingConfirmationPage /> },

@@ -4,8 +4,8 @@ import { Menu, X } from 'lucide-react';
 
 const navLinks = [
   { to: '/', label: 'Home' },
-  { to: '/property/tripti-bungalow-15', label: 'Properties' },
-  { to: '#contact', label: 'Contact' },
+  { to: '/properties', label: 'Properties' },
+  { to: '/contact', label: 'Contact' },
 ];
 
 export function Header() {
@@ -17,9 +17,9 @@ export function Header() {
         <Link
           to="/"
           className="text-lg font-semibold text-gray-900"
-          aria-label="Thane Bungalows home"
+          aria-label="Tripti Bungalow home"
         >
-          Thane Bungalows
+          Tripti Bungalow
         </Link>
 
         <nav className="hidden md:flex md:items-center md:gap-6" aria-label="Main">

@@ -44,13 +44,13 @@ export async function runDataCleanup(): Promise<void> {
     // Phase 1: Send 48h warning emails
     const customersToWarn = await Customer.find({
       dataRetentionExpiresAt: { $lte: now },
-      dataCleanupWarningAt: { $exists: false },
+      dataCleanupWarningAt: null,
       $or: [
         { aadhaarDocumentUrl: { $ne: null } },
         { idNumber: { $ne: null } },
         { idDocumentUrl: { $ne: null } },
       ],
-    });
+    }).limit(50);
 
     for (const customer of customersToWarn) {
       try {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,8 +6,11 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { useQuery } from '@tanstack/react-query';
+import { DayPicker } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import { Plus, Trash2 } from 'lucide-react';
 import { useProperty, useProperties } from '@/hooks/useProperties';
+import { useAvailability } from '@/hooks/useAvailability';
 import { useBooking } from '@/hooks/useBooking';
 import { getPaymentInfo } from '@/services/payment-info.api';
 import { formatCurrency } from '@/utils/format-currency';
@@ -123,6 +126,69 @@ export function BookingPage() {
   const { data: allProperties } = useProperties();
   const allPropertyList = (allProperties as { _id: string; name: string; slug: string }[] | undefined) ?? [];
   const createBookingMutation = useBooking();
+
+  const [bookingMonth, setBookingMonth] = useState(new Date());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    urlCheckIn && urlCheckOut
+      ? { from: new Date(urlCheckIn), to: new Date(urlCheckOut) }
+      : undefined
+  );
+
+  const { data: availability } = useAvailability(
+    property?._id,
+    bookingMonth.getMonth() + 1,
+    bookingMonth.getFullYear(),
+    Boolean(property?._id)
+  );
+
+  const unavailableDates = useMemo(() => {
+    const blocked = new Set<string>();
+    if (availability?.dates) {
+      for (const entry of availability.dates) {
+        if (entry.status !== 'available') blocked.add(entry.date.slice(0, 10));
+      }
+    } else if (availability?.available) {
+      const avail = new Set(availability.available.map((d: string) => d.slice(0, 10)));
+      const start = new Date(bookingMonth.getFullYear(), bookingMonth.getMonth(), 1);
+      const end = new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() + 1, 0);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = format(new Date(d), 'yyyy-MM-dd');
+        if (!avail.has(key)) blocked.add(key);
+      }
+    }
+    return blocked;
+  }, [availability, bookingMonth]);
+
+  const pendingDates = useMemo(() => {
+    const pending = new Set<string>();
+    if (availability?.dates) {
+      for (const entry of availability.dates) {
+        if (entry.status === 'pending') pending.add(entry.date.slice(0, 10));
+      }
+    }
+    return pending;
+  }, [availability]);
+
+  const bookedDates = useMemo(() => {
+    const booked = new Set<string>();
+    if (availability?.dates) {
+      for (const entry of availability.dates) {
+        if (entry.status === 'booked' || entry.status === 'blocked') {
+          booked.add(entry.date.slice(0, 10));
+        }
+      }
+    }
+    return booked;
+  }, [availability]);
+
+  useEffect(() => {
+    if (dateRange?.from) {
+      datesForm.setValue('checkIn', format(dateRange.from, 'yyyy-MM-dd'));
+    }
+    if (dateRange?.to) {
+      datesForm.setValue('checkOut', format(dateRange.to, 'yyyy-MM-dd'));
+    }
+  }, [dateRange, datesForm]);
 
   const { data: paymentInfo, isLoading: loadingPaymentInfo } = useQuery({
     queryKey: ['payment-info'],
@@ -525,41 +591,65 @@ export function BookingPage() {
 
           {step === 3 && (
             <form onSubmit={datesForm.handleSubmit(onDatesSubmit)}>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Check-in / Check-out Details
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Select Your Dates</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Tap your check-in date, then tap your check-out date. Unavailable dates are grayed out.
+              </p>
+
               <div className="mt-4 space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Check-in</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      {...datesForm.register('checkIn')}
-                      className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-                    />
-                    <span className="text-sm text-gray-600">12:00 PM (Noon)</span>
-                  </div>
-                  {datesForm.formState.errors.checkIn && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {datesForm.formState.errors.checkIn.message}
-                    </p>
-                  )}
+                <DayPicker
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  month={bookingMonth}
+                  onMonthChange={setBookingMonth}
+                  disabled={(date) => {
+                    const key = format(date, 'yyyy-MM-dd');
+                    if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
+                    return unavailableDates.has(key);
+                  }}
+                  modifiers={{
+                    pending: (date) => pendingDates.has(format(date, 'yyyy-MM-dd')),
+                    booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
+                  }}
+                  modifiersClassNames={{
+                    pending: 'bg-amber-100 text-amber-700',
+                    booked: 'bg-gray-200 text-gray-400 line-through',
+                  }}
+                  fromMonth={new Date()}
+                  className="rounded-lg border border-gray-200 p-3"
+                />
+
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-3 w-3 rounded-full bg-amber-200 border border-amber-400" />
+                    Pending confirmation
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
+                    Booked / Blocked
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-3 w-3 rounded-full bg-blue-200 border border-blue-400" />
+                    Your selected range
+                  </span>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Check-out</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      {...datesForm.register('checkOut')}
-                      className="block rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-                    />
-                    <span className="text-sm text-gray-600">10:00 AM</span>
-                  </div>
-                  {datesForm.formState.errors.checkOut && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {datesForm.formState.errors.checkOut.message}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Check-in</p>
+                    <p className="mt-1 font-medium text-gray-900">
+                      {dateRange?.from ? format(dateRange.from, 'dd MMM yyyy') : 'Select date'}
                     </p>
-                  )}
+                    <p className="text-xs text-gray-500">12:00 PM (Noon)</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Check-out</p>
+                    <p className="mt-1 font-medium text-gray-900">
+                      {dateRange?.to ? format(dateRange.to, 'dd MMM yyyy') : 'Select date'}
+                    </p>
+                    <p className="text-xs text-gray-500">10:00 AM</p>
+                  </div>
                 </div>
                 {allPropertyList.length === 2 && (
                   <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
@@ -628,7 +718,11 @@ export function BookingPage() {
                 <Button type="button" variant="secondary" onClick={() => setStep(2)}>
                   Back
                 </Button>
-                <Button type="submit" variant="primary">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!dateRange?.from || !dateRange?.to || nights === 0}
+                >
                   Next
                 </Button>
               </div>

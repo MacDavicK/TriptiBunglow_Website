@@ -12,6 +12,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ImageSlideshow } from '@/components/ui/ImageSlideshow';
+import { PLACEHOLDER_IMAGES_NO_15, PLACEHOLDER_IMAGES_NO_14 } from '@/utils/placeholder-images';
 import type { DateRange } from 'react-day-picker';
 
 const RATE_PAISE = 4000000;
@@ -31,23 +32,25 @@ export function PropertyPage() {
     Boolean(property?._id)
   );
 
-  const { availableSet, pendingSet, bookedSet } = useMemo(() => {
+  const { availableSet, pendingSet, bookedSet, blockedSet } = useMemo(() => {
     const avail = new Set<string>();
     const pending = new Set<string>();
     const booked = new Set<string>();
+    const blocked = new Set<string>();
 
     if (availability?.dates) {
       for (const entry of availability.dates) {
         const key = entry.date.slice(0, 10);
         if (entry.status === 'available') avail.add(key);
         else if (entry.status === 'pending') pending.add(key);
+        else if (entry.status === 'blocked') blocked.add(key);
         else booked.add(key);
       }
     } else if (availability?.available) {
       availability.available.forEach((d) => avail.add(d.slice(0, 10)));
     }
 
-    return { availableSet: avail, pendingSet: pending, bookedSet: booked };
+    return { availableSet: avail, pendingSet: pending, bookedSet: booked, blockedSet: blocked };
   }, [availability]);
 
   const disabledDays = useMemo(() => {
@@ -55,10 +58,10 @@ export function PropertyPage() {
     return (date: Date) => {
       const key = format(date, 'yyyy-MM-dd');
       return hasStatusData
-        ? (bookedSet.has(key) || pendingSet.has(key))
+        ? (bookedSet.has(key) || pendingSet.has(key) || blockedSet.has(key))
         : !availableSet.has(key);
     };
-  }, [availability?.dates, bookedSet, availableSet]);
+  }, [availability?.dates, bookedSet, pendingSet, blockedSet, availableSet]);
 
   const nights = range?.from && range?.to
     ? Math.max(0, Math.ceil((range.to.getTime() - range.from.getTime()) / (24 * 60 * 60 * 1000)))
@@ -87,7 +90,11 @@ export function PropertyPage() {
     <PageContainer>
       <div className="py-6">
         <ImageSlideshow
-          images={property.photos ?? []}
+          images={property.photos?.length ? property.photos : (
+            property.slug === 'tripti-bungalow-15'
+              ? PLACEHOLDER_IMAGES_NO_15
+              : PLACEHOLDER_IMAGES_NO_14
+          )}
           alt={property.name}
           variant="card"
           interval={5000}
@@ -124,11 +131,13 @@ export function PropertyPage() {
                       onMonthChange={setMonth}
                       modifiers={{
                         pending: (date) => pendingSet.has(format(date, 'yyyy-MM-dd')),
-                        booked: (date) => bookedSet.has(format(date, 'yyyy-MM-dd')),
+                        booked: (date) => bookedSet.has(format(date, 'yyyy-MM-dd')) && !blockedSet.has(format(date, 'yyyy-MM-dd')),
+                        blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
                       }}
                       modifiersClassNames={{
                         pending: 'bg-amber-100 text-amber-700',
                         booked: 'bg-gray-200 text-gray-400',
+                        blocked: 'bg-red-100 text-red-400',
                       }}
                       className="mt-2 rounded-lg border border-gray-200 p-2"
                     />
@@ -140,6 +149,10 @@ export function PropertyPage() {
                       <span className="flex items-center gap-1">
                         <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
                         Booked
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-full bg-red-200 border border-red-300" />
+                        Maintenance / Unavailable
                       </span>
                     </div>
                   </>
