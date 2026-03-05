@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DayPicker } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { getDashboardStats, getBlockedDates, getBookings } from '@/services/admin.api';
 import { useProperties } from '@/hooks/useProperties';
 import { formatCurrency } from '@/utils/format-currency';
@@ -13,6 +12,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { AdminCalendar, type CalendarDayInfo } from '@/components/admin/AdminCalendar';
 import type { BookingStatusForBadge } from '@/utils/constants';
 
 const PLACEHOLDER_STATS = {
@@ -46,52 +46,6 @@ function generateDateRange(checkIn: string, checkOut: string): string[] {
   if (start >= end) return [];
   const days = eachDayOfInterval({ start, end: new Date(end.getTime() - 86400000) });
   return days.map((d) => format(d, 'yyyy-MM-dd'));
-}
-
-interface PropertyCalendarProps {
-  propertyId: string;
-  propertyLabel: string;
-  month: Date;
-  onMonthChange: (m: Date) => void;
-  bookedDates: Set<string>;
-  blockedDates: Set<string>;
-}
-
-function PropertyCalendar({
-  propertyLabel,
-  month,
-  onMonthChange,
-  bookedDates,
-  blockedDates,
-}: PropertyCalendarProps) {
-  const today = startOfDay(new Date());
-
-  return (
-    <Card className="flex-1 min-w-0">
-      <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyLabel}</h3>
-      <div className="rdp-admin-large">
-        <DayPicker
-          mode="multiple"
-          selected={[]}
-          month={month}
-          onMonthChange={onMonthChange}
-          modifiers={{
-            booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
-            blocked: (date) => blockedDates.has(format(date, 'yyyy-MM-dd')),
-            'past-date': (date) => isBefore(date, today),
-            'today-highlight': (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
-          }}
-          modifiersClassNames={{
-            booked: 'rdp-booked',
-            blocked: 'rdp-blocked',
-            'past-date': 'rdp-past-date',
-            'today-highlight': 'rdp-today-highlight',
-          }}
-          className="rounded-lg border border-gray-200 p-3"
-        />
-      </div>
-    </Card>
-  );
 }
 
 export function DashboardPage() {
@@ -163,6 +117,20 @@ export function DashboardPage() {
     return set;
   }, [bookings, property2Id]);
 
+  const dateMap1 = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
+    booked1Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    blocked1Set.forEach((d) => { map[d] = { status: 'blocked' }; });
+    return map;
+  }, [booked1Set, blocked1Set]);
+
+  const dateMap2 = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
+    booked2Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    blocked2Set.forEach((d) => { map[d] = { status: 'blocked' }; });
+    return map;
+  }, [booked2Set, blocked2Set]);
+
   if (error) {
     return (
       <PageContainer>
@@ -233,23 +201,21 @@ export function DashboardPage() {
         <h2 className="text-xl font-bold text-gray-900">Availability Overview</h2>
         <div className="mt-4 grid gap-6 md:grid-cols-2">
           {property1Id && (
-            <PropertyCalendar
-              propertyId={property1Id}
-              propertyLabel={propertyList[0]?.name.includes('15') ? 'No. 15' : 'No. 14'}
+            <AdminCalendar
+              title={propertyList[0]?.name.includes('15') ? 'No. 15' : 'No. 14'}
+              dateMap={dateMap1}
+              readOnly
               month={month}
               onMonthChange={setMonth}
-              bookedDates={booked1Set}
-              blockedDates={blocked1Set}
             />
           )}
           {property2Id && (
-            <PropertyCalendar
-              propertyId={property2Id}
-              propertyLabel={propertyList[1]?.name.includes('15') ? 'No. 15' : 'No. 14'}
+            <AdminCalendar
+              title={propertyList[1]?.name.includes('15') ? 'No. 15' : 'No. 14'}
+              dateMap={dateMap2}
+              readOnly
               month={month}
               onMonthChange={setMonth}
-              bookedDates={booked2Set}
-              blockedDates={blocked2Set}
             />
           )}
         </div>
@@ -257,15 +223,15 @@ export function DashboardPage() {
         {/* Legend */}
         <div className="mt-4 flex flex-wrap items-center gap-6 text-base text-gray-700">
           <span className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full bg-green-200 ring-1 ring-green-400" />
+            <span className="inline-block h-5 w-5 rounded-md bg-green-100 border border-green-300" />
             Booked
           </span>
           <span className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full bg-red-200 ring-1 ring-red-400" />
+            <span className="inline-block h-5 w-5 rounded-md bg-red-100 border border-red-300" />
             Blocked / Maintenance
           </span>
           <span className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full bg-white ring-1 ring-gray-300" />
+            <span className="inline-block h-5 w-5 rounded-md bg-white border border-gray-200" />
             Available
           </span>
         </div>

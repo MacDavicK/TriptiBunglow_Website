@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBlockedDates, blockDates, unblockDate } from '@/services/admin.api';
 import { useProperties } from '@/hooks/useProperties';
-import { DayPicker } from 'react-day-picker';
-import { format } from 'date-fns';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { AdminCalendar, type CalendarDayInfo } from '@/components/admin/AdminCalendar';
 import toast from 'react-hot-toast';
 
 interface BungalowCalendarProps {
@@ -16,7 +15,8 @@ interface BungalowCalendarProps {
 }
 
 function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [month, setMonth] = useState(new Date());
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   const { data: blockedList, error, refetch } = useQuery({
@@ -44,21 +44,26 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to unblock'),
   });
 
-  const blockedSet = new Set(
-    (blockedList ?? []).map((d) => d.date.slice(0, 10))
-  );
+  const dateMap = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
+    (blockedList ?? []).forEach((d) => {
+      map[d.date.slice(0, 10)] = { status: 'blocked', recordId: d._id };
+    });
+    return map;
+  }, [blockedList]);
 
-  const handleDayClick = (date: Date) => {
-    const key = format(date, 'yyyy-MM-dd');
-    if (blockedSet.has(key)) {
-      const record = blockedList?.find((b) => b.date.slice(0, 10) === key);
-      if (record) unblockMutation.mutate(record._id);
-    }
+  const handleDateSelect = (dateStr: string) => {
+    setSelectedDates((prev) =>
+      prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr],
+    );
   };
 
-  const handleSaveBlocked = () => {
-    const dates = selectedDates.map((d) => format(d, 'yyyy-MM-dd'));
-    if (dates.length) blockMutation.mutate(dates);
+  const handleDateUnblock = (_dateStr: string, recordId: string) => {
+    unblockMutation.mutate(recordId);
+  };
+
+  const handleBlock = () => {
+    if (selectedDates.length) blockMutation.mutate(selectedDates);
   };
 
   if (error) {
@@ -73,36 +78,33 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
   }
 
   return (
-    <Card className="flex-1 min-w-0">
-      <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyName}</h3>
-      <div className="rdp-admin-large">
-        <DayPicker
-          mode="multiple"
-          selected={selectedDates}
-          onSelect={(dates) => setSelectedDates(dates ?? [])}
-          onDayClick={handleDayClick}
-          modifiers={{
-            blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
-          }}
-          modifiersClassNames={{
-            blocked: 'rdp-blocked',
-          }}
-          disabled={(date) => false}
-          className="rounded-lg border border-gray-200 p-3"
-        />
-      </div>
-      <div className="mt-4">
+    <div className="flex-1 min-w-0">
+      <AdminCalendar
+        title={propertyName}
+        dateMap={dateMap}
+        selectedDates={selectedDates}
+        onDateSelect={handleDateSelect}
+        onDateUnblock={handleDateUnblock}
+        month={month}
+        onMonthChange={setMonth}
+      />
+      <div className="mt-4 flex items-center gap-4">
         <Button
           variant="primary"
-          onClick={handleSaveBlocked}
+          onClick={handleBlock}
           disabled={selectedDates.length === 0}
           loading={blockMutation.isPending}
           className="py-3 px-6"
         >
-          Block selected dates ({selectedDates.length})
+          Block {selectedDates.length} selected date{selectedDates.length !== 1 ? 's' : ''}
         </Button>
+        {selectedDates.length > 0 && (
+          <Button variant="secondary" onClick={() => setSelectedDates([])}>
+            Clear selection
+          </Button>
+        )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -124,17 +126,17 @@ export function BlockedDatesPage() {
       </div>
 
       {/* Legend */}
-      <div className="mt-6 flex flex-wrap items-center gap-6 text-base text-gray-700">
+      <div className="mt-8 flex flex-wrap items-center gap-6 text-base text-gray-700">
         <span className="flex items-center gap-2">
-          <span className="inline-block h-4 w-4 rounded-full bg-red-200 ring-1 ring-red-400" />
+          <span className="inline-block h-5 w-5 rounded-md bg-red-100 border border-red-300" />
           Blocked
         </span>
         <span className="flex items-center gap-2">
-          <span className="inline-block h-4 w-4 rounded-full bg-blue-200 ring-1 ring-blue-400" />
-          Selected (click &quot;Block&quot; to confirm)
+          <span className="inline-block h-5 w-5 rounded-md bg-blue-100 border-2 border-blue-400" />
+          Selected for blocking
         </span>
         <span className="flex items-center gap-2">
-          <span className="inline-block h-4 w-4 rounded-full bg-white ring-1 ring-gray-300" />
+          <span className="inline-block h-5 w-5 rounded-md bg-white border border-gray-200" />
           Available
         </span>
       </div>
