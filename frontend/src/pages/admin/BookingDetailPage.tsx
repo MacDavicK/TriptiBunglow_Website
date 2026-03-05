@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spinner } from '@/components/ui/Spinner';
-import { FileText } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import type { Customer } from '@shared/types';
 import type { BookingStatusForBadge } from '@/utils/constants';
 import toast from 'react-hot-toast';
@@ -120,6 +120,7 @@ export function BookingDetailPage() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        {/* Left column: Booking details */}
         <Card>
           <h2 className="font-semibold text-gray-900">Booking details</h2>
           <dl className="mt-4 space-y-2 text-sm">
@@ -186,165 +187,183 @@ export function BookingDetailPage() {
           </dl>
         </Card>
 
-        {customer && (
-          <Card>
-            <h2 className="font-semibold text-gray-900">Customer information</h2>
-            <dl className="mt-4 space-y-2 text-sm">
-              <div>
-                <dt className="text-gray-500">Name</dt>
-                <dd>{customer.name}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Email</dt>
-                <dd>{customer.email}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Phone</dt>
-                <dd>{customer.phone}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Nationality</dt>
-                <dd className="capitalize">{customer.nationality}</dd>
-              </div>
-              {customer.address && (
+        {/* Right column: Customer info + Guest verification + Actions */}
+        <div className="space-y-6">
+          {customer && (
+            <Card>
+              <h2 className="font-semibold text-gray-900">Customer information</h2>
+              <dl className="mt-4 space-y-2 text-sm">
                 <div>
-                  <dt className="text-gray-500">Address</dt>
-                  <dd>{customer.address}</dd>
+                  <dt className="text-gray-500">Name</dt>
+                  <dd>{customer.name}</dd>
                 </div>
-              )}
-            </dl>
-          </Card>
-        )}
-
-        <Card>
-          <h2 className="font-semibold text-gray-900">Actions</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {status === 'pending_payment' && (
-              <Button
-                variant="primary"
-                onClick={() => confirmPaymentMutation.mutate()}
-                loading={confirmPaymentMutation.isPending}
-              >
-                Confirm Payment
-              </Button>
-            )}
-            {status === 'pending_approval' && (
-              <>
-                <Button
-                  variant="primary"
-                  onClick={() => approveMutation.mutate()}
-                  loading={approveMutation.isPending}
-                >
-                  Approve
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => rejectMutation.mutate('Declined by admin')}
-                  loading={rejectMutation.isPending}
-                >
-                  Reject
-                </Button>
-              </>
-            )}
-            {status === 'confirmed' && (
-              <Button
-                variant="primary"
-                onClick={() => checkInMutation.mutate()}
-                loading={checkInMutation.isPending}
-              >
-                Check-in
-              </Button>
-            )}
-            {status === 'checked_in' && (
-              <Button
-                variant="primary"
-                onClick={() => checkOutMutation.mutate()}
-                loading={checkOutMutation.isPending}
-              >
-                Check-out & refund deposit
-              </Button>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Identity Documents */}
-      <div className="mt-6">
-        <Card>
-          <h2 className="font-semibold text-gray-900">Identity documents</h2>
-
-          {customer && (customer.aadhaarDocumentUrl || customer.idDocumentUrl) ? (
-            <div className="mt-4 space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-700">
-                  Primary guest — {customer.name}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {customer.aadhaarDocumentUrl && (
-                    <a
-                      href={customer.aadhaarDocumentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
-                    >
-                      <FileText className="h-4 w-4" />
-                      View Aadhaar Document
-                    </a>
-                  )}
-                  {customer.idDocumentUrl && (
-                    <a
-                      href={customer.idDocumentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
-                    >
-                      <FileText className="h-4 w-4" />
-                      View ID Document
-                    </a>
-                  )}
+                <div>
+                  <dt className="text-gray-500">Email</dt>
+                  <dd>{customer.email}</dd>
                 </div>
-              </div>
+                <div>
+                  <dt className="text-gray-500">Phone</dt>
+                  <dd>{customer.phone}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Nationality</dt>
+                  <dd className="capitalize">{customer.nationality}</dd>
+                </div>
+                {customer.address && (
+                  <div>
+                    <dt className="text-gray-500">Address</dt>
+                    <dd>{customer.address}</dd>
+                  </div>
+                )}
+              </dl>
+            </Card>
+          )}
 
-              {booking.additionalGuests && booking.additionalGuests.length > 0 && (
-                <div className="border-t border-gray-100 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700">Additional guests</h3>
-                  <div className="mt-2 space-y-3">
-                    {booking.additionalGuests.map((guest, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{guest.name}</span>
-                        {guest.aadhaarDocumentUrl ? (
+          <Card>
+            <h2 className="font-semibold text-gray-900">Guest Verification</h2>
+
+            {customer && (customer.aadhaarDocumentUrl || customer.idDocumentUrl) ? (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Primary Guest &mdash; {customer.name}
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {customer.aadhaarDocumentUrl && (
+                      <a
+                        href={customer.aadhaarDocumentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        <img
+                          src={customer.aadhaarDocumentUrl}
+                          alt="Aadhaar document"
+                          className="max-w-xs rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                        />
+                        <p className="mt-1 text-xs text-gray-400">Click to open full size</p>
+                      </a>
+                    )}
+                    {customer.idDocumentUrl && (
+                      <a
+                        href={customer.idDocumentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        <img
+                          src={customer.idDocumentUrl}
+                          alt="ID document"
+                          className="max-w-xs rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                        />
+                        <p className="mt-1 text-xs text-gray-400">Click to open full size</p>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {booking.additionalGuests && booking.additionalGuests.length > 0 &&
+                  booking.additionalGuests.map((guest, i) => (
+                    <div key={i} className="border-t border-gray-100 pt-3">
+                      <h3 className="text-sm font-medium text-gray-700">
+                        Additional Guest {i + 1} &mdash; {guest.name}
+                      </h3>
+                      {guest.aadhaarDocumentUrl ? (
+                        <div className="mt-2">
                           <a
                             href={guest.aadhaarDocumentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                            className="inline-block"
                           >
-                            <FileText className="h-3.5 w-3.5" />
-                            View Aadhaar
+                            <img
+                              src={guest.aadhaarDocumentUrl}
+                              alt={`${guest.name} Aadhaar document`}
+                              className="max-w-xs rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                            />
                           </a>
-                        ) : (
-                          <span className="text-xs text-gray-400">No document</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-400 italic">No document uploaded</p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">
+                {customer
+                  ? 'Identity documents have been removed per data retention policy.'
+                  : 'Customer data not available.'}
+              </p>
+            )}
+
+            {customer?.dataRetentionExpiresAt && (
+              <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                <p className="text-xs text-amber-800">
+                  <strong>DPDP Notice:</strong> Guest ID documents are automatically deleted 30 days after check-out.
+                  {' '}Scheduled deletion:{' '}
+                  {new Date(customer.dataRetentionExpiresAt).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}.
+                </p>
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <h2 className="font-semibold text-gray-900">Actions</h2>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {status === 'pending_payment' && (
+                <Button
+                  variant="primary"
+                  onClick={() => confirmPaymentMutation.mutate()}
+                  loading={confirmPaymentMutation.isPending}
+                >
+                  Confirm Payment
+                </Button>
+              )}
+              {status === 'pending_approval' && (
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => approveMutation.mutate()}
+                    loading={approveMutation.isPending}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => rejectMutation.mutate('Declined by admin')}
+                    loading={rejectMutation.isPending}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+              {status === 'confirmed' && (
+                <Button
+                  variant="primary"
+                  onClick={() => checkInMutation.mutate()}
+                  loading={checkInMutation.isPending}
+                >
+                  Check-in
+                </Button>
+              )}
+              {status === 'checked_in' && (
+                <Button
+                  variant="primary"
+                  onClick={() => checkOutMutation.mutate()}
+                  loading={checkOutMutation.isPending}
+                >
+                  Check-out & refund deposit
+                </Button>
               )}
             </div>
-          ) : (
-            <p className="mt-4 text-sm text-gray-500">
-              {customer
-                ? 'Identity documents have been removed per data retention policy.'
-                : 'Customer data not available.'}
-            </p>
-          )}
-
-          {customer?.dataRetentionExpiresAt && (
-            <p className="mt-4 text-xs text-gray-400">
-              Documents auto-delete after {formatDateIST(customer.dataRetentionExpiresAt)}
-            </p>
-          )}
-        </Card>
+          </Card>
+        </div>
       </div>
     </PageContainer>
   );

@@ -20,6 +20,7 @@ export function PrivacyPolicyPage() {
         <ul>
           <li>Name, email, and phone number</li>
           <li>Identity document type and number (for foreign guests, as required under the Foreigners Act)</li>
+          <li>Aadhaar card number and photo (for guest verification and damage accountability &mdash; deleted 30 days after check-out)</li>
           <li>Booking dates, property, guest count, and special requests</li>
           <li>Payment and transaction records (handled by our payment processor)</li>
         </ul>
@@ -40,8 +41,9 @@ export function PrivacyPolicyPage() {
 
         <h2>5. Retention</h2>
         <p>
-          Customer data: up to 3 years after last booking. Booking records: 5 years. Payment records: 7 years.
-          Audit logs: 1 year. After these periods, data is deleted or anonymised.
+          Identity documents (Aadhaar photos and numbers): 30 days after check-out, then automatically
+          deleted. You will receive a notification 48 hours before deletion. Booking records (without
+          identity data): 3 years. Audit logs: 1 year. After these periods, data is deleted or anonymised.
         </p>
 
         <h2>6. Your Rights</h2>
