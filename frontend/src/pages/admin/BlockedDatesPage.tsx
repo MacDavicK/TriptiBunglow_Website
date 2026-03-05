@@ -75,19 +75,22 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
   return (
     <Card className="flex-1 min-w-0">
       <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyName}</h3>
-      <DayPicker
-        mode="multiple"
-        selected={selectedDates}
-        onSelect={(dates) => setSelectedDates(dates ?? [])}
-        onDayClick={handleDayClick}
-        modifiers={{
-          blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
-        }}
-        modifiersClassNames={{
-          blocked: 'rdp-blocked',
-        }}
-        className="rdp-large rounded-lg border border-gray-200 p-3"
-      />
+      <div className="rdp-admin-large">
+        <DayPicker
+          mode="multiple"
+          selected={selectedDates}
+          onSelect={(dates) => setSelectedDates(dates ?? [])}
+          onDayClick={handleDayClick}
+          modifiers={{
+            blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
+          }}
+          modifiersClassNames={{
+            blocked: 'rdp-blocked',
+          }}
+          disabled={(date) => false}
+          className="rounded-lg border border-gray-200 p-3"
+        />
+      </div>
       <div className="mt-4">
         <Button
           variant="primary"

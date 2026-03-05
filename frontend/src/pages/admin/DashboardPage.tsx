@@ -69,25 +69,27 @@ function PropertyCalendar({
   return (
     <Card className="flex-1 min-w-0">
       <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyLabel}</h3>
-      <DayPicker
-        mode="multiple"
-        selected={[]}
-        month={month}
-        onMonthChange={onMonthChange}
-        modifiers={{
-          booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
-          blocked: (date) => blockedDates.has(format(date, 'yyyy-MM-dd')),
-          past: (date) => isBefore(date, today),
-          'today-highlight': (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
-        }}
-        modifiersClassNames={{
-          booked: 'rdp-booked',
-          blocked: 'rdp-blocked',
-          past: 'rdp-past',
-          'today-highlight': 'rdp-today-highlight',
-        }}
-        className="rdp-large rounded-lg border border-gray-200 p-3"
-      />
+      <div className="rdp-admin-large">
+        <DayPicker
+          mode="multiple"
+          selected={[]}
+          month={month}
+          onMonthChange={onMonthChange}
+          modifiers={{
+            booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
+            blocked: (date) => blockedDates.has(format(date, 'yyyy-MM-dd')),
+            'past-date': (date) => isBefore(date, today),
+            'today-highlight': (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
+          }}
+          modifiersClassNames={{
+            booked: 'rdp-booked',
+            blocked: 'rdp-blocked',
+            'past-date': 'rdp-past-date',
+            'today-highlight': 'rdp-today-highlight',
+          }}
+          className="rounded-lg border border-gray-200 p-3"
+        />
+      </div>
     </Card>
   );
 }
