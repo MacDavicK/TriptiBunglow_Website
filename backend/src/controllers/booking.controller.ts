@@ -46,10 +46,13 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const propertyObjectIds = (propertyIds as string[]).map((id: string) => new Types.ObjectId(id));
 
   try {
-    const properties = await Property.find({
-      _id: { $in: propertyObjectIds },
-      isActive: true,
-    });
+    // Use findById per property to avoid Mongoose $in casting bug on _id
+    const propertyResults = await Promise.all(
+      propertyObjectIds.map((id) => Property.findById(id))
+    );
+    const properties = propertyResults.filter(
+      (p): p is NonNullable<typeof p> => p !== null && p.isActive === true
+    );
 
     if (properties.length !== propertyIds.length) {
       throw new AppError('One or more properties not found or inactive', 400, 'INVALID_PROPERTY');
@@ -61,8 +64,8 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     const nights = Math.ceil(
       (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const totalCharged = RATE_PER_NIGHT * nights * propertyIds.length + SECURITY_DEPOSIT;
-    const depositAmount = SECURITY_DEPOSIT;
+    const depositAmount = SECURITY_DEPOSIT * propertyIds.length;
+    const totalCharged = RATE_PER_NIGHT * nights * propertyIds.length + depositAmount;
 
     // Encrypt primary guest's Aadhaar number
     let encryptedIdNumber: string | undefined;

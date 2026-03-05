@@ -26,12 +26,12 @@ router.get('/payment-info', (_req: Request, res: Response) => {
       upiId,
       upiQrCodeUrl: upiQrCodeUrl || null,
       instructions: [
-        'Open any UPI app (Google Pay, PhonePe, Paytm, etc.)',
-        `Pay to UPI ID: ${upiId}`,
-        'Enter the total booking amount as shown on the booking summary',
-        'Take a screenshot of the payment confirmation',
-        'Upload the screenshot and enter the UTR/reference number in the booking form',
-        'The owner will verify your payment within 24 hours',
+        'Scan the QR code or use the UPI ID above to pay the security deposit via any UPI app (Google Pay, PhonePe, Paytm, etc.).',
+        'Security deposit: ₹5,000 per bungalow. If booking both bungalows, pay ₹10,000.',
+        'The remaining stay amount is payable at check-in.',
+        'After payment, enter the UTR/Reference number from your UPI app below.',
+        'Optionally upload a screenshot of the payment confirmation for faster verification.',
+        'Your booking will be confirmed once the property owner verifies the payment (usually within 24 hours).',
       ],
     },
   });
