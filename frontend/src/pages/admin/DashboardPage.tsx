@@ -88,7 +88,7 @@ function PropertyCalendar({
           booked: 'bg-green-200 text-green-900 font-semibold',
           blocked: 'bg-red-200 text-red-800 line-through',
           past: 'opacity-50',
-          today: 'ring-2 ring-indigo-500',
+          today: 'font-bold bg-indigo-50 text-indigo-700 rounded-lg',
         }}
         className="rounded-lg border border-gray-200 p-3"
       />

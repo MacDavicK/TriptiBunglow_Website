@@ -53,12 +53,6 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
     if (blockedSet.has(key)) {
       const record = blockedList?.find((b) => b.date.slice(0, 10) === key);
       if (record) unblockMutation.mutate(record._id);
-    } else {
-      setSelectedDates((prev) => {
-        const next = prev.filter((d) => format(d, 'yyyy-MM-dd') !== key);
-        if (next.length === prev.length) next.push(date);
-        return next;
-      });
     }
   };
 
