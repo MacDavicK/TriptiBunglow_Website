@@ -80,17 +80,13 @@ function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
         selected={selectedDates}
         onSelect={(dates) => setSelectedDates(dates ?? [])}
         onDayClick={handleDayClick}
-        styles={{
-          day: { width: '3rem', height: '3rem', fontSize: '1rem', borderRadius: '0.5rem' },
-          month_caption: { fontSize: '1.25rem', fontWeight: 'bold' },
-        }}
         modifiers={{
           blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
         }}
         modifiersClassNames={{
-          blocked: 'bg-red-200 text-red-800 line-through',
+          blocked: 'rdp-blocked',
         }}
-        className="rounded-lg border border-gray-200 p-3"
+        className="rdp-large rounded-lg border border-gray-200 p-3"
       />
       <div className="mt-4">
         <Button

@@ -74,23 +74,19 @@ function PropertyCalendar({
         selected={[]}
         month={month}
         onMonthChange={onMonthChange}
-        styles={{
-          day: { width: '3rem', height: '3rem', fontSize: '1rem', borderRadius: '0.5rem' },
-          month_caption: { fontSize: '1.25rem', fontWeight: 'bold' },
-        }}
         modifiers={{
           booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
           blocked: (date) => blockedDates.has(format(date, 'yyyy-MM-dd')),
           past: (date) => isBefore(date, today),
-          today: (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
+          'today-highlight': (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
         }}
         modifiersClassNames={{
-          booked: 'bg-green-200 text-green-900 font-semibold',
-          blocked: 'bg-red-200 text-red-800 line-through',
-          past: 'opacity-50',
-          today: 'font-bold bg-indigo-50 text-indigo-700 rounded-lg',
+          booked: 'rdp-booked',
+          blocked: 'rdp-blocked',
+          past: 'rdp-past',
+          'today-highlight': 'rdp-today-highlight',
         }}
-        className="rounded-lg border border-gray-200 p-3"
+        className="rdp-large rounded-lg border border-gray-200 p-3"
       />
     </Card>
   );
