@@ -110,6 +110,24 @@ export function HomePage() {
                 </Card>
               ))}
         </div>
+
+        {list.length === 2 && (
+          <div className="mt-8 rounded-xl border-2 border-indigo-200 bg-indigo-50 p-6 text-center">
+            <h3 className="text-xl font-bold text-indigo-900">
+              Planning a wedding or large event?
+            </h3>
+            <p className="mt-2 text-indigo-700">
+              Book both bungalows together — accommodates up to 100 guests with two lawns,
+              two kitchens, and plenty of space.
+            </p>
+            <Link
+              to={`/book/${list[0]?.slug || 'tripti-bungalow-15'}?both=true`}
+              className="mt-4 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow hover:bg-indigo-700"
+            >
+              Book Both Bungalows
+            </Link>
+          </div>
+        )}
       </section>
     </PageContainer>
   );

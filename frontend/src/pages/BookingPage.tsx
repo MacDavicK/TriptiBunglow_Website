@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
-import { useProperty } from '@/hooks/useProperties';
+import { useProperty, useProperties } from '@/hooks/useProperties';
 import { useBooking } from '@/hooks/useBooking';
 import { getPaymentInfo } from '@/services/payment-info.api';
 import { formatCurrency } from '@/utils/format-currency';
@@ -115,8 +115,13 @@ export function BookingPage() {
 
   const urlCheckIn = searchParams.get('checkIn') ?? '';
   const urlCheckOut = searchParams.get('checkOut') ?? '';
+  const urlBoth = searchParams.get('both') === 'true';
+
+  const [bookBoth, setBookBoth] = useState(urlBoth);
 
   const { data: property } = useProperty(slug);
+  const { data: allProperties } = useProperties();
+  const allPropertyList = (allProperties as { _id: string; name: string; slug: string }[] | undefined) ?? [];
   const createBookingMutation = useBooking();
 
   const { data: paymentInfo, isLoading: loadingPaymentInfo } = useQuery({
@@ -184,7 +189,10 @@ export function BookingPage() {
           (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (24 * 60 * 60 * 1000)
         )
       : 0;
-  const totalPaise = nights * RATE_PAISE + DEPOSIT_PAISE;
+  const propertyCount = bookBoth ? 2 : 1;
+  const stayPaise = nights * RATE_PAISE * propertyCount;
+  const depositPaise = DEPOSIT_PAISE * propertyCount;
+  const totalPaise = stayPaise + depositPaise;
 
   /* ─── HANDLERS ─── */
 
@@ -223,7 +231,9 @@ export function BookingPage() {
       guest.reasonForRenting === 'Other' ? guest.customReason || 'Other' : guest.reasonForRenting;
 
     const payload: CreateBookingRequest = {
-      propertyIds: [property._id],
+      propertyIds: bookBoth
+        ? allPropertyList.map((p) => p._id)
+        : [property!._id],
       checkIn: dates.checkIn,
       checkOut: dates.checkOut,
       bookingType: dates.bookingType,
@@ -551,14 +561,48 @@ export function BookingPage() {
                     </p>
                   )}
                 </div>
+                {allPropertyList.length === 2 && (
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bookBoth}
+                        onChange={(e) => setBookBoth(e.target.checked)}
+                        className="mt-1 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div>
+                        <p className="font-semibold text-indigo-900">
+                          Book both bungalows (No. 14 & No. 15)
+                        </p>
+                        <p className="mt-0.5 text-sm text-indigo-700">
+                          Perfect for weddings, large parties, or events with 50+ guests.
+                          Both properties share the same dates.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
                 {nights > 0 && (
                   <div className="rounded-lg bg-gray-50 p-4 text-sm">
-                    <p>
-                      {nights} night(s) × {formatCurrency(RATE_PAISE)} ={' '}
-                      {formatCurrency(nights * RATE_PAISE)}
-                    </p>
-                    <p>Security Deposit: {formatCurrency(DEPOSIT_PAISE)}</p>
-                    <p className="mt-2 font-semibold">Total: {formatCurrency(totalPaise)}</p>
+                    {bookBoth ? (
+                      <>
+                        <p className="font-medium text-gray-700">2 Bungalows × {nights} night(s):</p>
+                        <p className="mt-1">
+                          {formatCurrency(RATE_PAISE)} × {nights} nights × 2 bungalows = {formatCurrency(stayPaise)}
+                        </p>
+                        <p className="mt-1">
+                          Security Deposit: {formatCurrency(DEPOSIT_PAISE)} × 2 = {formatCurrency(depositPaise)}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          {nights} night(s) × {formatCurrency(RATE_PAISE)} = {formatCurrency(stayPaise)}
+                        </p>
+                        <p>Security Deposit: {formatCurrency(depositPaise)}</p>
+                      </>
+                    )}
+                    <p className="mt-2 font-semibold text-gray-900">Total: {formatCurrency(totalPaise)}</p>
                   </div>
                 )}
                 <div>
@@ -605,10 +649,10 @@ export function BookingPage() {
                 <div className="mt-4 space-y-4">
                   <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm">
                     <p className="font-semibold text-indigo-900">
-                      Pay {formatCurrency(DEPOSIT_PAISE)} Security Deposit
+                      Pay {formatCurrency(depositPaise)} Security Deposit
                     </p>
                     <p className="mt-1 text-indigo-700">
-                      The remaining stay amount of {formatCurrency(nights * RATE_PAISE)} is
+                      The remaining stay amount of {formatCurrency(stayPaise)} is
                       payable at check-in.
                     </p>
                   </div>
@@ -682,18 +726,34 @@ export function BookingPage() {
               <div className="mt-4 space-y-4">
                 <div className="rounded-lg bg-gray-50 p-4 text-sm">
                   <p>
-                    <strong>{property.name}</strong>
+                    <strong>
+                      {bookBoth
+                        ? allPropertyList.map((p) => p.name).join(' & ')
+                        : property.name}
+                    </strong>
+                    {bookBoth && (
+                      <span className="ml-2 inline-block rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        Both bungalows
+                      </span>
+                    )}
                   </p>
                   <p>
                     Check-in: {checkIn ? formatDateLocalDDMMYYYY(new Date(checkIn)) : '—'} (12:00
-                    PM) · Check-out: {checkOut ? formatDateLocalDDMMYYYY(new Date(checkOut)) : '—'}{' '}
+                    PM){' · '}
+                    Check-out: {checkOut ? formatDateLocalDDMMYYYY(new Date(checkOut)) : '—'}{' '}
                     (10:00 AM)
                   </p>
-                  <p>
-                    {nights} night(s) × {formatCurrency(RATE_PAISE)} ={' '}
-                    {formatCurrency(nights * RATE_PAISE)}
-                  </p>
-                  <p>Security Deposit: {formatCurrency(DEPOSIT_PAISE)}</p>
+                  {bookBoth ? (
+                    <>
+                      <p>{formatCurrency(RATE_PAISE)} × {nights} nights × 2 bungalows = {formatCurrency(stayPaise)}</p>
+                      <p>Security Deposit: {formatCurrency(DEPOSIT_PAISE)} × 2 = {formatCurrency(depositPaise)}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>{nights} night(s) × {formatCurrency(RATE_PAISE)} = {formatCurrency(stayPaise)}</p>
+                      <p>Security Deposit: {formatCurrency(depositPaise)}</p>
+                    </>
+                  )}
                   <p className="mt-2 font-semibold">Total: {formatCurrency(totalPaise)}</p>
                   <hr className="my-3 border-gray-200" />
                   <p>
