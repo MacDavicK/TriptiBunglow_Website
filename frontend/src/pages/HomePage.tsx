@@ -19,7 +19,7 @@ const PLACEHOLDER_PROPERTIES: PropertyListItem[] = [
     ratePerNight: 4000000,
     maxGuests: 50,
     photos: [],
-    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
+    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn (up to 50 people)', 'Outdoor Seating Area (6 people)', 'Gated Parking (2 cars)', 'WiFi', 'AC'],
   },
   {
     _id: '2',
@@ -28,7 +28,7 @@ const PLACEHOLDER_PROPERTIES: PropertyListItem[] = [
     ratePerNight: 4000000,
     maxGuests: 50,
     photos: [],
-    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn'],
+    amenities: ['2 Bedrooms', '2 Bathrooms', 'Hall', 'Kitchen', 'Balcony', 'Terrace', 'Large Lawn (up to 50 people)', 'Outdoor Seating Area (6 people)', 'BBQ & Grill Area', 'Gated Parking (2 cars)', 'WiFi', 'AC'],
   },
 ];
 
@@ -91,7 +91,7 @@ export function HomePage() {
                       {property.maxGuests} guests
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {property.amenities.slice(0, 3).map((a) => (
+                      {property.amenities.map((a) => (
                         <span
                           key={a}
                           className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600"

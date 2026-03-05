@@ -31,9 +31,16 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     paymentScreenshotUrl,
   } = req.body;
 
-  // Validate properties exist
+  // Validate and convert property IDs to ObjectId instances
+  const propertyObjectIds = (propertyIds as string[]).map((id: string) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new AppError(`Invalid property ID: "${id}". Please refresh the page and try again.`, 400, 'INVALID_PROPERTY_ID');
+    }
+    return new mongoose.Types.ObjectId(id);
+  });
+
   const properties = await Property.find({
-    _id: { $in: propertyIds },
+    _id: { $in: propertyObjectIds },
     isActive: true,
   });
 
