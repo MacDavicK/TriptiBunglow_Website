@@ -31,11 +31,18 @@ export function BookingDetailPage() {
     enabled: Boolean(id),
   });
 
+  const invalidateDashboard = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'bookings', 'calendar'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+  };
+
   const approveMutation = useMutation({
     mutationFn: () => approveBooking(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      invalidateDashboard();
       toast.success('Booking approved');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
@@ -44,8 +51,7 @@ export function BookingDetailPage() {
   const rejectMutation = useMutation({
     mutationFn: (reason: string) => rejectBooking(id!, reason),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      invalidateDashboard();
       toast.success('Booking rejected');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
@@ -54,8 +60,7 @@ export function BookingDetailPage() {
   const checkInMutation = useMutation({
     mutationFn: () => checkInBooking(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      invalidateDashboard();
       toast.success('Checked in');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
@@ -64,8 +69,7 @@ export function BookingDetailPage() {
   const checkOutMutation = useMutation({
     mutationFn: () => checkOutBooking(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      invalidateDashboard();
       toast.success('Checked out');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
@@ -74,8 +78,7 @@ export function BookingDetailPage() {
   const confirmPaymentMutation = useMutation({
     mutationFn: () => confirmPayment(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+      invalidateDashboard();
       toast.success('Payment confirmed — booking is now confirmed');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to confirm payment'),
@@ -191,28 +194,28 @@ export function BookingDetailPage() {
         <div className="space-y-6">
           {customer && (
             <Card>
-              <h2 className="font-semibold text-gray-900">Customer information</h2>
-              <dl className="mt-4 space-y-2 text-sm">
+              <h2 className="text-lg font-bold text-gray-900">Customer Information</h2>
+              <dl className="mt-4 space-y-2">
                 <div>
-                  <dt className="text-gray-500">Name</dt>
-                  <dd>{customer.name}</dd>
+                  <dt className="text-base text-gray-500">Name</dt>
+                  <dd className="text-base font-medium">{customer.name}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Email</dt>
-                  <dd>{customer.email}</dd>
+                  <dt className="text-base text-gray-500">Email</dt>
+                  <dd className="text-base font-medium">{customer.email}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Phone</dt>
-                  <dd>{customer.phone}</dd>
+                  <dt className="text-base text-gray-500">Phone</dt>
+                  <dd className="text-base font-medium">{customer.phone}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Nationality</dt>
-                  <dd className="capitalize">{customer.nationality}</dd>
+                  <dt className="text-base text-gray-500">Nationality</dt>
+                  <dd className="text-base font-medium capitalize">{customer.nationality}</dd>
                 </div>
                 {customer.address && (
                   <div>
-                    <dt className="text-gray-500">Address</dt>
-                    <dd>{customer.address}</dd>
+                    <dt className="text-base text-gray-500">Address</dt>
+                    <dd className="text-base font-medium">{customer.address}</dd>
                   </div>
                 )}
               </dl>
@@ -220,12 +223,12 @@ export function BookingDetailPage() {
           )}
 
           <Card>
-            <h2 className="font-semibold text-gray-900">Guest Verification</h2>
+            <h2 className="text-lg font-bold text-gray-900">Guest Verification</h2>
 
             {customer && (customer.aadhaarDocumentUrl || customer.idDocumentUrl) ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700">
+                  <h3 className="text-base font-bold text-gray-900">
                     Primary Guest &mdash; {customer.name}
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-3">
@@ -265,7 +268,7 @@ export function BookingDetailPage() {
                 {booking.additionalGuests && booking.additionalGuests.length > 0 &&
                   booking.additionalGuests.map((guest, i) => (
                     <div key={i} className="border-t border-gray-100 pt-3">
-                      <h3 className="text-sm font-medium text-gray-700">
+                      <h3 className="text-base font-bold text-gray-900">
                         Additional Guest {i + 1} &mdash; {guest.name}
                       </h3>
                       {guest.aadhaarDocumentUrl ? (

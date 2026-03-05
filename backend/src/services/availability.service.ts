@@ -89,15 +89,24 @@ export const releaseDateHolds = async (bookingId: Types.ObjectId): Promise<void>
   logger.info({ bookingId, deletedCount: result.deletedCount }, 'Released date holds');
 };
 
+export type DateStatus = 'available' | 'pending' | 'booked' | 'blocked';
+
 /**
  * Get availability for an entire month for a property.
- * Returns an object mapping date strings to availability status.
+ * Returns per-date status: available, pending, booked, or blocked.
+ *
+ * - blocked: admin-blocked dates (DateHold with sentinel bookingId)
+ * - booked: confirmed or checked-in bookings, or active booking date holds
+ * - pending: pending_payment or pending_approval bookings
+ * - available: everything else
  */
 export const getMonthAvailability = async (
   propertyId: string,
   year: number,
   month: number
-): Promise<Array<{ date: string; available: boolean }>> => {
+): Promise<Array<{ date: string; status: DateStatus; available: boolean }>> => {
+  const ADMIN_BLOCK_SENTINEL = '000000000000000000000000';
+
   const startDate = new Date(Date.UTC(year, month - 1, 1));
   const endDate = new Date(Date.UTC(year, month, 1));
 
@@ -106,34 +115,58 @@ export const getMonthAvailability = async (
     date: { $gte: startDate, $lt: endDate },
   }).lean();
 
-  const confirmedBookings = await Booking.find({
+  const bookings = await Booking.find({
     propertyIds: new Types.ObjectId(propertyId),
-    status: { $in: ['pending_payment', 'confirmed', 'checked_in'] },
+    status: { $in: ['pending_payment', 'pending_approval', 'confirmed', 'checked_in'] },
     checkIn: { $lt: endDate },
     checkOut: { $gt: startDate },
   }).lean();
 
-  const unavailableDates = new Set<string>();
+  // Separate admin-blocked holds from booking holds
+  const blockedDates = new Set<string>();
+  const holdDates = new Set<string>();
 
   for (const hold of holds) {
-    unavailableDates.add(hold.date.toISOString().split('T')[0]);
-  }
-
-  for (const booking of confirmedBookings) {
-    const dates = generateDateRange(booking.checkIn, booking.checkOut);
-    for (const d of dates) {
-      unavailableDates.add(d.toISOString().split('T')[0]);
+    const dateStr = hold.date.toISOString().split('T')[0];
+    if (hold.bookingId.toString() === ADMIN_BLOCK_SENTINEL) {
+      blockedDates.add(dateStr);
+    } else {
+      holdDates.add(dateStr);
     }
   }
 
-  const result: Array<{ date: string; available: boolean }> = [];
+  // Separate pending vs confirmed/checked-in booking dates
+  const pendingDates = new Set<string>();
+  const bookedDates = new Set<string>();
+
+  for (const booking of bookings) {
+    const dates = generateDateRange(booking.checkIn, booking.checkOut);
+    const isPending = ['pending_payment', 'pending_approval'].includes(booking.status);
+    for (const d of dates) {
+      const dateStr = d.toISOString().split('T')[0];
+      if (isPending) {
+        pendingDates.add(dateStr);
+      } else {
+        bookedDates.add(dateStr);
+      }
+    }
+  }
+
+  const result: Array<{ date: string; status: DateStatus; available: boolean }> = [];
   const current = new Date(startDate);
   while (current < endDate) {
     const dateStr = current.toISOString().split('T')[0];
-    result.push({
-      date: dateStr,
-      available: !unavailableDates.has(dateStr),
-    });
+
+    let status: DateStatus = 'available';
+    if (bookedDates.has(dateStr) || holdDates.has(dateStr)) {
+      status = 'booked';
+    } else if (blockedDates.has(dateStr)) {
+      status = 'blocked';
+    } else if (pendingDates.has(dateStr)) {
+      status = 'pending';
+    }
+
+    result.push({ date: dateStr, status, available: status === 'available' });
     current.setUTCDate(current.getUTCDate() + 1);
   }
 

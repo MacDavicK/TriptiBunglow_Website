@@ -2,9 +2,16 @@ import type { ApiResponse } from '@shared/types';
 import type { CreateBookingRequest } from '@shared/types';
 import { api } from './api';
 
+export interface AvailabilityDateEntry {
+  date: string;
+  status: 'available' | 'pending' | 'booked' | 'blocked';
+  available?: boolean;
+}
+
 export interface AvailabilityResponse {
   available: string[];
   unavailable: string[];
+  dates?: AvailabilityDateEntry[];
 }
 
 export async function getAvailability(

@@ -31,18 +31,32 @@ export function PropertyPage() {
     Boolean(property?._id)
   );
 
-  const availableSet = useMemo(() => {
-    const set = new Set<string>();
-    availability?.available?.forEach((d) => set.add(d.slice(0, 10)));
-    return set;
-  }, [availability?.available]);
+  const { availableSet, pendingSet, bookedSet } = useMemo(() => {
+    const avail = new Set<string>();
+    const pending = new Set<string>();
+    const booked = new Set<string>();
+
+    if (availability?.dates) {
+      for (const entry of availability.dates) {
+        const key = entry.date.slice(0, 10);
+        if (entry.status === 'available') avail.add(key);
+        else if (entry.status === 'pending') pending.add(key);
+        else booked.add(key);
+      }
+    } else if (availability?.available) {
+      availability.available.forEach((d) => avail.add(d.slice(0, 10)));
+    }
+
+    return { availableSet: avail, pendingSet: pending, bookedSet: booked };
+  }, [availability]);
 
   const disabledDays = useMemo(() => {
+    const hasStatusData = Boolean(availability?.dates);
     return (date: Date) => {
       const key = format(date, 'yyyy-MM-dd');
-      return !availableSet.has(key);
+      return hasStatusData ? bookedSet.has(key) : !availableSet.has(key);
     };
-  }, [availableSet]);
+  }, [availability?.dates, bookedSet, availableSet]);
 
   const nights = range?.from && range?.to
     ? Math.max(0, Math.ceil((range.to.getTime() - range.from.getTime()) / (24 * 60 * 60 * 1000)))
@@ -98,15 +112,35 @@ export function PropertyPage() {
                 {loadingAvail ? (
                   <Skeleton className="mt-2 h-64 w-full" />
                 ) : (
-                  <DayPicker
-                    mode="range"
-                    selected={range}
-                    onSelect={setRange}
-                    disabled={disabledDays}
-                    month={month}
-                    onMonthChange={setMonth}
-                    className="mt-2 rounded-lg border border-gray-200 p-2"
-                  />
+                  <>
+                    <DayPicker
+                      mode="range"
+                      selected={range}
+                      onSelect={setRange}
+                      disabled={disabledDays}
+                      month={month}
+                      onMonthChange={setMonth}
+                      modifiers={{
+                        pending: (date) => pendingSet.has(format(date, 'yyyy-MM-dd')),
+                        booked: (date) => bookedSet.has(format(date, 'yyyy-MM-dd')),
+                      }}
+                      modifiersClassNames={{
+                        pending: 'bg-amber-100 text-amber-700',
+                        booked: 'bg-gray-200 text-gray-400',
+                      }}
+                      className="mt-2 rounded-lg border border-gray-200 p-2"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-full bg-amber-200 border border-amber-400" />
+                        Pending confirmation
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
+                        Booked
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
               <div className="mt-4">

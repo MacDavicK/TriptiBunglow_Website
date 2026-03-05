@@ -22,14 +22,30 @@ export const getAvailability = catchAsync(async (req: Request, res: Response) =>
     throw new AppError('Invalid year', 400, 'INVALID_YEAR');
   }
 
-  const availability = await getMonthAvailability(
+  const dates = await getMonthAvailability(
     propertyId as string,
     yearNum,
     monthNum
   );
 
+  // Build backward-compat arrays + new per-date status data
+  const available: string[] = [];
+  const unavailable: string[] = [];
+
+  for (const d of dates) {
+    if (d.available) {
+      available.push(d.date);
+    } else {
+      unavailable.push(d.date);
+    }
+  }
+
   res.json({
     success: true,
-    data: availability,
+    data: {
+      available,
+      unavailable,
+      dates, // per-date status for richer calendar rendering
+    },
   });
 });
