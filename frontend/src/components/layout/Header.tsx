@@ -4,7 +4,7 @@ import { Menu, X } from 'lucide-react';
 
 const navLinks = [
   { to: '/', label: 'Home' },
-  { to: '/property/bungalow-a', label: 'Properties' },
+  { to: '/property/tripti-bungalow-15', label: 'Properties' },
   { to: '#contact', label: 'Contact' },
 ];
 

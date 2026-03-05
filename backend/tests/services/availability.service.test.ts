@@ -15,7 +15,7 @@ beforeEach(async () => {
   const propA = await Property.create({
     name: 'Test Property A',
     slug: 'test-a',
-    ratePerNight: 2500000,
+    ratePerNight: 4000000,
     securityDeposit: 500000,
     maxGuests: 10,
     amenities: [],
@@ -24,7 +24,7 @@ beforeEach(async () => {
   const propB = await Property.create({
     name: 'Test Property B',
     slug: 'test-b',
-    ratePerNight: 2500000,
+    ratePerNight: 4000000,
     securityDeposit: 500000,
     maxGuests: 10,
     amenities: [],

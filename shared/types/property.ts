@@ -3,7 +3,7 @@ export interface Property {
   name: string;
   slug: string;
   description: string;
-  ratePerNight: number;       // paise (2500000 = ₹25,000)
+  ratePerNight: number;       // paise (4000000 = ₹40,000)
   securityDeposit: number;    // paise (500000 = ₹5,000)
   maxGuests: number;
   amenities: string[];

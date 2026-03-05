@@ -39,7 +39,7 @@ beforeEach(async () => {
   const property = await Property.create({
     name: 'Payment Test Bungalow',
     slug: 'payment-test-bungalow',
-    ratePerNight: 2500000,
+    ratePerNight: 4000000,
     securityDeposit: 500000,
     maxGuests: 10,
     amenities: ['WiFi'],

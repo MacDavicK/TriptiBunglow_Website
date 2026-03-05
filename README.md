@@ -74,7 +74,7 @@ Two bungalows (₹25,000/night + ₹5,000 refundable security deposit) are curre
 
 ## Key Design Decisions
 
-- **All monetary values stored in paise** (integer) to avoid floating-point errors. ₹25,000 = `2500000` paise.
+- **All monetary values stored in paise** (integer) to avoid floating-point errors. ₹40,000 = `4000000` paise.
 - **Dates stored as UTC**, converted to IST (`Asia/Kolkata`) only in the frontend display layer.
 - **JWT access tokens held in memory** (not localStorage) with HttpOnly refresh token cookies — prevents XSS token theft.
 - **Refresh token rotation** — each use issues a new token and invalidates the old one.

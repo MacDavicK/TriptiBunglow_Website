@@ -41,7 +41,7 @@ export function HomePage() {
     <PageContainer>
       <ImageSlideshow
         images={HERO_IMAGES}
-        alt="Tripti and Spandan Bungalows"
+        alt="Tripti Bungalow — No. 14 & 15"
         variant="hero"
         interval={6000}
         overlay={
