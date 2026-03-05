@@ -1,11 +1,16 @@
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardStats } from '@/services/admin.api';
+import { DayPicker } from 'react-day-picker';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
+import { getDashboardStats, getBlockedDates, getBookings } from '@/services/admin.api';
+import { useProperties } from '@/hooks/useProperties';
 import { formatCurrency } from '@/utils/format-currency';
 import { formatDateIST } from '@/utils/format-date';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { BookingStatusForBadge } from '@/utils/constants';
@@ -33,14 +38,121 @@ const PLACEHOLDER_STATS = {
   ],
 };
 
+const BOOKED_STATUSES = new Set(['pending_payment', 'confirmed', 'checked_in']);
+
+function generateDateRange(checkIn: string, checkOut: string): string[] {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  if (start >= end) return [];
+  const days = eachDayOfInterval({ start, end: new Date(end.getTime() - 86400000) });
+  return days.map((d) => format(d, 'yyyy-MM-dd'));
+}
+
+interface PropertyCalendarProps {
+  propertyId: string;
+  propertyLabel: string;
+  month: Date;
+  onMonthChange: (m: Date) => void;
+  bookedDates: Set<string>;
+  blockedDates: Set<string>;
+}
+
+function PropertyCalendar({
+  propertyLabel,
+  month,
+  onMonthChange,
+  bookedDates,
+  blockedDates,
+}: PropertyCalendarProps) {
+  const today = startOfDay(new Date());
+
+  return (
+    <Card className="flex-1 min-w-0">
+      <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyLabel}</h3>
+      <DayPicker
+        mode="multiple"
+        selected={[]}
+        month={month}
+        onMonthChange={onMonthChange}
+        styles={{
+          day: { width: '3rem', height: '3rem', fontSize: '1rem', borderRadius: '0.5rem' },
+          month_caption: { fontSize: '1.25rem', fontWeight: 'bold' },
+        }}
+        modifiers={{
+          booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
+          blocked: (date) => blockedDates.has(format(date, 'yyyy-MM-dd')),
+          past: (date) => isBefore(date, today),
+          today: (date) => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'),
+        }}
+        modifiersClassNames={{
+          booked: 'bg-green-200 text-green-900 font-semibold',
+          blocked: 'bg-red-200 text-red-800 line-through',
+          past: 'opacity-50',
+          today: 'ring-2 ring-indigo-500',
+        }}
+        className="rounded-lg border border-gray-200 p-3"
+      />
+    </Card>
+  );
+}
+
 export function DashboardPage() {
+  const [month, setMonth] = useState(new Date());
   const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'dashboard', 'stats'],
     queryFn: getDashboardStats,
     retry: false,
   });
   const display = stats ?? PLACEHOLDER_STATS;
-  // TODO: Replace with real API call when backend is running
+
+  const { data: properties } = useProperties();
+  const propertyList = (properties as { _id: string; name: string; slug: string }[] | undefined) ?? [];
+
+  const monthStart = format(startOfMonth(month), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(month), 'yyyy-MM-dd');
+
+  const { data: bookingsData } = useQuery({
+    queryKey: ['admin', 'bookings', 'calendar', monthStart, monthEnd],
+    queryFn: () => getBookings({ from: monthStart, to: monthEnd, limit: 100 }),
+    enabled: propertyList.length > 0,
+  });
+
+  const blockedQueries = propertyList.map((p) => {
+    return useQuery({
+      queryKey: ['admin', 'blocked-dates', p._id],
+      queryFn: () => getBlockedDates(p._id),
+      enabled: Boolean(p._id),
+    });
+  });
+
+  const { bookedByProperty, blockedByProperty } = useMemo(() => {
+    const bookedMap = new Map<string, Set<string>>();
+    const blockedMap = new Map<string, Set<string>>();
+
+    for (const p of propertyList) {
+      bookedMap.set(p._id, new Set());
+      blockedMap.set(p._id, new Set());
+    }
+
+    const bookings = bookingsData?.data ?? [];
+    for (const b of bookings) {
+      if (!BOOKED_STATUSES.has(b.status)) continue;
+      const dates = generateDateRange(b.checkIn, b.checkOut);
+      for (const pid of b.propertyIds) {
+        const set = bookedMap.get(pid);
+        if (set) dates.forEach((d) => set.add(d));
+      }
+    }
+
+    blockedQueries.forEach((q, i) => {
+      const pid = propertyList[i]?._id;
+      if (!pid || !q.data) return;
+      const set = blockedMap.get(pid);
+      if (set) q.data.forEach((d) => set.add(d.date.slice(0, 10)));
+    });
+
+    return { bookedByProperty: bookedMap, blockedByProperty: blockedMap };
+  }, [propertyList, bookingsData, blockedQueries.map((q) => q.data)]);
 
   if (error) {
     return (
@@ -56,8 +168,9 @@ export function DashboardPage() {
   return (
     <PageContainer>
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p className="mt-1 text-gray-600">Overview of bookings and revenue</p>
+      <p className="mt-1 text-base text-gray-600">Overview of bookings and revenue</p>
 
+      {/* Stat cards */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -69,25 +182,25 @@ export function DashboardPage() {
         ) : (
           <>
             <Card>
-              <p className="text-sm font-medium text-gray-500">Bookings this month</p>
+              <p className="text-base font-medium text-gray-500">Bookings this month</p>
               <p className="mt-1 text-2xl font-semibold text-gray-900">
                 {display.totalBookingsThisMonth}
               </p>
             </Card>
             <Card>
-              <p className="text-sm font-medium text-gray-500">Revenue this month</p>
+              <p className="text-base font-medium text-gray-500">Revenue this month</p>
               <p className="mt-1 text-2xl font-semibold text-gray-900">
                 {formatCurrency(display.revenueThisMonth)}
               </p>
             </Card>
             <Card>
-              <p className="text-sm font-medium text-gray-500">Upcoming bookings</p>
+              <p className="text-base font-medium text-gray-500">Upcoming bookings</p>
               <p className="mt-1 text-2xl font-semibold text-gray-900">
                 {display.upcomingBookings}
               </p>
             </Card>
             <Card>
-              <p className="text-sm font-medium text-gray-500">Occupancy rate</p>
+              <p className="text-base font-medium text-gray-500">Occupancy rate</p>
               <p className="mt-1 text-2xl font-semibold text-gray-900">
                 {display.occupancyRate}%
               </p>
@@ -96,25 +209,55 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="mt-8 flex gap-4">
-        <Link
-          to="/admin/blocked-dates"
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          Block dates
+      {/* Action buttons */}
+      <div className="mt-8 flex flex-wrap gap-4">
+        <Link to="/admin/blocked-dates">
+          <Button variant="secondary">Block Dates</Button>
         </Link>
-        <Link
-          to="/admin/bookings"
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          View all bookings
+        <Link to="/admin/bookings">
+          <Button variant="secondary">View All Bookings</Button>
         </Link>
       </div>
 
+      {/* Availability calendars */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-gray-900">Availability Overview</h2>
+        <div className="mt-4 grid gap-6 md:grid-cols-2">
+          {propertyList.map((p) => (
+            <PropertyCalendar
+              key={p._id}
+              propertyId={p._id}
+              propertyLabel={p.name.includes('15') ? 'No. 15' : 'No. 14'}
+              month={month}
+              onMonthChange={setMonth}
+              bookedDates={bookedByProperty.get(p._id) ?? new Set()}
+              blockedDates={blockedByProperty.get(p._id) ?? new Set()}
+            />
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 flex flex-wrap items-center gap-6 text-base text-gray-700">
+          <span className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded-full bg-green-200 ring-1 ring-green-400" />
+            Booked
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded-full bg-red-200 ring-1 ring-red-400" />
+            Blocked / Maintenance
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded-full bg-white ring-1 ring-gray-300" />
+            Available
+          </span>
+        </div>
+      </div>
+
+      {/* Recent bookings table */}
       <Card className="mt-8">
         <h2 className="text-lg font-semibold text-gray-900">Recent bookings</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-base">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500">
                 <th className="pb-2 pr-4">ID</th>

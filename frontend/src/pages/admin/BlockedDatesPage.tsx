@@ -1,47 +1,38 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBlockedDates, blockDates, unblockDate } from '@/services/admin.api';
+import { useProperties } from '@/hooks/useProperties';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { PROPERTY_SLUGS } from '@/utils/constants';
-import { useProperties } from '@/hooks/useProperties';
 import toast from 'react-hot-toast';
 
-const propertyOptions = [
-  { value: '', label: 'Select property' },
-  ...PROPERTY_SLUGS.map((s) => ({ value: s, label: s })),
-];
+interface BungalowCalendarProps {
+  propertyId: string;
+  propertyName: string;
+}
 
-export function BlockedDatesPage() {
-  const [propertySlug, setPropertySlug] = useState('');
+function BungalowCalendar({ propertyId, propertyName }: BungalowCalendarProps) {
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const queryClient = useQueryClient();
 
-  const { data: properties } = useProperties();
-  const property = (properties as { _id: string; slug: string }[] | undefined)?.find(
-    (p) => p.slug === propertySlug
-  );
-  const propertyId = property?._id;
-
   const { data: blockedList, error, refetch } = useQuery({
     queryKey: ['admin', 'blocked-dates', propertyId],
-    queryFn: () => getBlockedDates(propertyId!),
+    queryFn: () => getBlockedDates(propertyId),
     enabled: Boolean(propertyId),
   });
 
   const blockMutation = useMutation({
-    mutationFn: (dates: string[]) => blockDates(propertyId!, dates),
+    mutationFn: (dates: string[]) => blockDates(propertyId, dates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates', propertyId] });
-      toast.success('Dates blocked');
+      toast.success(`Dates blocked for ${propertyName}`);
       setSelectedDates([]);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to block dates'),
   });
 
   const unblockMutation = useMutation({
@@ -50,7 +41,7 @@ export function BlockedDatesPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-dates', propertyId] });
       toast.success('Date unblocked');
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed'),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to unblock'),
   });
 
   const blockedSet = new Set(
@@ -73,62 +64,87 @@ export function BlockedDatesPage() {
 
   const handleSaveBlocked = () => {
     const dates = selectedDates.map((d) => format(d, 'yyyy-MM-dd'));
-    if (dates.length && propertyId) blockMutation.mutate(dates);
+    if (dates.length) blockMutation.mutate(dates);
   };
 
   if (error) {
     return (
-      <PageContainer>
+      <Card className="flex-1 min-w-0">
         <ErrorBanner
           message={error instanceof Error ? error.message : 'Failed to load blocked dates'}
           onRetry={() => refetch()}
         />
-      </PageContainer>
+      </Card>
     );
   }
 
   return (
-    <PageContainer>
-      <h1 className="text-2xl font-bold text-gray-900">Blocked dates</h1>
-      <p className="mt-1 text-gray-600">Select a property and click dates to block or unblock.</p>
+    <Card className="flex-1 min-w-0">
+      <h3 className="mb-4 text-xl font-bold text-gray-900">{propertyName}</h3>
+      <DayPicker
+        mode="multiple"
+        selected={selectedDates}
+        onSelect={(dates) => setSelectedDates(dates ?? [])}
+        onDayClick={handleDayClick}
+        styles={{
+          day: { width: '3rem', height: '3rem', fontSize: '1rem', borderRadius: '0.5rem' },
+          month_caption: { fontSize: '1.25rem', fontWeight: 'bold' },
+        }}
+        modifiers={{
+          blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
+        }}
+        modifiersClassNames={{
+          blocked: 'bg-red-200 text-red-800 line-through',
+        }}
+        className="rounded-lg border border-gray-200 p-3"
+      />
+      <div className="mt-4">
+        <Button
+          variant="primary"
+          onClick={handleSaveBlocked}
+          disabled={selectedDates.length === 0}
+          loading={blockMutation.isPending}
+          className="py-3 px-6"
+        >
+          Block selected dates ({selectedDates.length})
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
-      <div className="mt-6">
-        <Select
-          label="Property"
-          options={propertyOptions}
-          value={propertySlug}
-          onChange={(e) => setPropertySlug(e.target.value)}
-          className="w-48"
-        />
+export function BlockedDatesPage() {
+  const { data: properties } = useProperties();
+  const propertyList = (properties as { _id: string; name: string }[] | undefined) ?? [];
+
+  return (
+    <PageContainer>
+      <h1 className="text-2xl font-bold text-gray-900">Blocked Dates</h1>
+      <p className="mt-1 text-base text-gray-600">
+        Click available dates to select them for blocking. Click red blocked dates to unblock.
+      </p>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        {propertyList.map((p) => (
+          <BungalowCalendar key={p._id} propertyId={p._id} propertyName={p.name} />
+        ))}
       </div>
 
-      {propertyId && (
-        <Card className="mt-6">
-          <DayPicker
-            mode="multiple"
-            selected={selectedDates}
-            onSelect={(dates) => setSelectedDates(dates ?? [])}
-            onDayClick={handleDayClick}
-            className="rounded-lg border border-gray-200 p-2"
-            modifiers={{
-              blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
-            }}
-            modifiersClassNames={{
-              blocked: 'bg-red-100 text-red-800 line-through',
-            }}
-          />
-          <div className="mt-4 flex gap-2">
-            <Button
-              variant="primary"
-              onClick={handleSaveBlocked}
-              disabled={selectedDates.length === 0}
-              loading={blockMutation.isPending}
-            >
-              Block selected dates
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* Legend */}
+      <div className="mt-6 flex flex-wrap items-center gap-6 text-base text-gray-700">
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-4 w-4 rounded-full bg-red-200 ring-1 ring-red-400" />
+          Blocked
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-4 w-4 rounded-full bg-blue-200 ring-1 ring-blue-400" />
+          Selected (click &quot;Block&quot; to confirm)
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-4 w-4 rounded-full bg-white ring-1 ring-gray-300" />
+          Available
+        </span>
+      </div>
     </PageContainer>
   );
 }

@@ -227,9 +227,6 @@ export function BookingDetailPage() {
               </Button>
             )}
           </div>
-          <p className="mt-4 text-sm text-gray-500">
-            Damage report (photo, amount, deduct) — stub for Day 6–8.
-          </p>
         </Card>
       </div>
     </PageContainer>
