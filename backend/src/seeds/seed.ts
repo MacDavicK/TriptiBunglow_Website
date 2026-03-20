@@ -56,10 +56,26 @@ const PROPERTIES = [
   },
 ];
 
+const hasMongoUriPlaceholders = (mongoUri: string): boolean => {
+  const trimmed = mongoUri.trim();
+  return (
+    trimmed.includes('<username>') ||
+    trimmed.includes('<password>') ||
+    trimmed.includes('<cluster>')
+  );
+};
+
 const seed = async (): Promise<void> => {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
     logger.error('MONGODB_URI not set. Cannot seed.');
+    process.exit(1);
+  }
+
+  if (hasMongoUriPlaceholders(mongoUri)) {
+    logger.error(
+      'MONGODB_URI still contains template placeholders (<username>, <password>, <cluster>). Update backend/.env with real Atlas values.'
+    );
     process.exit(1);
   }
 

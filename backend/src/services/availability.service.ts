@@ -30,7 +30,7 @@ export const checkAvailability = async (
 
   const existingHolds = await DateHold.find({
     propertyId: new Types.ObjectId(propertyId),
-    date: { $in: dates },
+    date: mongoose.trusted({ $in: dates }),
   }).lean();
 
   return existingHolds.map((hold) => hold.date.toISOString().split('T')[0]);
@@ -112,14 +112,19 @@ export const getMonthAvailability = async (
 
   const holds = await DateHold.find({
     propertyId: new Types.ObjectId(propertyId),
-    date: { $gte: startDate, $lt: endDate },
+    $and: [
+      { date: mongoose.trusted({ $gte: startDate }) },
+      { date: mongoose.trusted({ $lt: endDate }) }
+    ],
   }).lean();
 
   const bookings = await Booking.find({
-    propertyIds: new Types.ObjectId(propertyId),
-    status: { $in: ['pending_payment', 'pending_approval', 'confirmed', 'checked_in'] },
-    checkIn: { $lt: endDate },
-    checkOut: { $gt: startDate },
+    $and: [
+      { propertyIds: new Types.ObjectId(propertyId) },
+      { status: mongoose.trusted({ $in: ['pending_payment', 'pending_approval', 'confirmed', 'checked_in'] }) },
+      { checkIn: mongoose.trusted({ $lt: endDate }) },
+      { checkOut: mongoose.trusted({ $gt: startDate }) },
+    ],
   }).lean();
 
   // Separate admin-blocked holds from booking holds

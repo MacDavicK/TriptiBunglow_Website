@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import { Booking } from '../models/booking.model';
 import { catchAsync } from '../utils/catch-async';
@@ -20,8 +21,11 @@ export const getStats = catchAsync(async (_req: Request, res: Response) => {
     Booking.aggregate([
       {
         $match: {
-          status: { $in: ['confirmed', 'checked_in', 'checked_out'] },
-          createdAt: { $gte: startOfMonth, $lt: endOfMonth },
+          status: mongoose.trusted({ $in: ['confirmed', 'checked_in', 'checked_out'] }),
+          $and: [
+            { createdAt: mongoose.trusted({ $gte: startOfMonth }) },
+            { createdAt: mongoose.trusted({ $lt: endOfMonth }) }
+          ],
         },
       },
       {
@@ -33,7 +37,7 @@ export const getStats = catchAsync(async (_req: Request, res: Response) => {
     ]),
     Booking.countDocuments({
       status: 'confirmed',
-      checkIn: { $gte: now },
+      checkIn: mongoose.trusted({ $gte: now }),
     }),
     Promise.resolve(
       Math.ceil((endOfMonth.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24))
@@ -41,9 +45,11 @@ export const getStats = catchAsync(async (_req: Request, res: Response) => {
     Booking.aggregate([
       {
         $match: {
-          status: { $in: ['confirmed', 'checked_in', 'checked_out'] },
-          checkIn: { $lt: endOfMonth },
-          checkOut: { $gt: startOfMonth },
+          $and: [
+            { status: mongoose.trusted({ $in: ['confirmed', 'checked_in', 'checked_out'] }) },
+            { checkIn: mongoose.trusted({ $lt: endOfMonth }) },
+            { checkOut: mongoose.trusted({ $gt: startOfMonth }) }
+          ],
         },
       },
       {

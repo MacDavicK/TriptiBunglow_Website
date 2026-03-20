@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Customer } from '../models/customer.model';
 import { Booking } from '../models/booking.model';
 import { logAudit } from '../services/audit.service';
@@ -43,7 +44,7 @@ export async function runDataCleanup(): Promise<void> {
   try {
     // Phase 1: Send 48h warning emails
     const customersToWarn = await Customer.find({
-      dataRetentionExpiresAt: { $lte: now },
+      dataRetentionExpiresAt: mongoose.trusted({ $lte: now }),
       dataCleanupWarningAt: null,
       $or: [
         { aadhaarDocumentUrl: { $ne: null } },
@@ -81,7 +82,7 @@ export async function runDataCleanup(): Promise<void> {
     const warningCutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
     const customersToClean = await Customer.find({
-      dataCleanupWarningAt: { $lte: warningCutoff },
+      dataCleanupWarningAt: mongoose.trusted({ $lte: warningCutoff }),
       $or: [
         { aadhaarDocumentUrl: { $ne: null } },
         { idNumber: { $ne: null } },
