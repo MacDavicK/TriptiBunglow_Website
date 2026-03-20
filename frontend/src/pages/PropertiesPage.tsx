@@ -1,5 +1,7 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProperties } from '@/hooks/useProperties';
+import { useAvailability } from '@/hooks/useAvailability';
 import { formatCurrency } from '@/utils/format-currency';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Card } from '@/components/ui/Card';
@@ -7,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ImageSlideshow } from '@/components/ui/ImageSlideshow';
+import { BookingCalendar, type CalendarDayInfo } from '@/components/ui/BookingCalendar';
 import { PLACEHOLDER_IMAGES_NO_15, PLACEHOLDER_IMAGES_NO_14 } from '@/utils/placeholder-images';
 import type { PropertyListItem } from '@shared/types';
 
@@ -33,6 +36,38 @@ const PLACEHOLDER_PROPERTIES: PropertyListItem[] = [
 
 function getPlaceholderImages(slug: string): string[] {
   return slug === 'tripti-bungalow-15' ? PLACEHOLDER_IMAGES_NO_15 : PLACEHOLDER_IMAGES_NO_14;
+}
+
+function PropertyMiniCalendar({ propertyId }: { propertyId: string }) {
+  const [month, setMonth] = useState(new Date());
+  const { data: availability } = useAvailability(
+    propertyId,
+    month.getMonth() + 1,
+    month.getFullYear(),
+    true
+  );
+
+  const dateMap = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
+    if (availability?.dates) {
+      for (const entry of availability.dates) {
+        map[entry.date.slice(0, 10)] = { status: entry.status as CalendarDayInfo['status'] };
+      }
+    }
+    return map;
+  }, [availability]);
+
+  return (
+    <BookingCalendar
+      dateMap={dateMap}
+      month={month}
+      onMonthChange={setMonth}
+      readOnly
+      size="mini"
+      showLegend
+      legendItems={['booked', 'blocked', 'available']}
+    />
+  );
 }
 
 export function PropertiesPage() {
@@ -84,6 +119,10 @@ export function PropertiesPage() {
                           {a}
                         </span>
                       ))}
+                    </div>
+                    <div className="mt-4">
+                      <p className="mb-2 text-sm font-medium text-gray-700">Availability</p>
+                      <PropertyMiniCalendar propertyId={property._id} />
                     </div>
                     <div className="mt-6 flex flex-wrap gap-3">
                       <Link to={`/property/${property.slug}`}>

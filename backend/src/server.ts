@@ -1,10 +1,34 @@
 import { env } from './config/env';
+import net from 'node:net';
 import { connectDB, disconnectDB } from './config/db';
 import { app } from './app';
 import { logger } from './utils/logger';
 import { runDataCleanup } from './jobs/data-cleanup';
 
 const PORT = env.PORT;
+
+const isPortAvailable = async (port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const probe = net.createServer();
+    probe
+      .once('error', () => resolve(false))
+      .once('listening', () => {
+        probe.close(() => resolve(true));
+      })
+      .listen(port);
+  });
+
+const resolveListenPort = async (preferredPort: number, isDev: boolean): Promise<number> => {
+  if (!isDev) return preferredPort;
+
+  const MAX_PORT_SCAN = 10;
+  for (let port = preferredPort; port < preferredPort + MAX_PORT_SCAN; port += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const available = await isPortAvailable(port);
+    if (available) return port;
+  }
+  return preferredPort;
+};
 
 const startServer = async (): Promise<void> => {
   try {
@@ -23,8 +47,9 @@ const startServer = async (): Promise<void> => {
       );
     }, CLEANUP_INTERVAL_MS);
 
-    const server = app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT} in ${env.NODE_ENV} mode`);
+    const listenPort = await resolveListenPort(PORT, env.NODE_ENV === 'development');
+    const server = app.listen(listenPort, () => {
+      logger.info(`Server running on port ${listenPort} in ${env.NODE_ENV} mode`);
     });
 
     // Graceful shutdown

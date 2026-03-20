@@ -38,7 +38,8 @@ const PLACEHOLDER_STATS = {
   ],
 };
 
-const BOOKED_STATUSES = new Set(['pending_payment', 'confirmed', 'checked_in']);
+const CONFIRMED_STATUSES = new Set(['confirmed', 'checked_in']);
+const PENDING_STATUSES = new Set(['pending_payment', 'pending_approval']);
 
 function generateDateRange(checkIn: string, checkOut: string): string[] {
   const start = new Date(checkIn);
@@ -95,11 +96,11 @@ export function DashboardPage() {
 
   const bookings = useMemo(() => bookingsData?.data ?? [], [bookingsData?.data]);
 
-  const booked1Set = useMemo(() => {
+  const confirmed1Set = useMemo(() => {
     if (!property1Id) return new Set<string>();
     const set = new Set<string>();
     for (const b of bookings) {
-      if (!BOOKED_STATUSES.has(b.status)) continue;
+      if (!CONFIRMED_STATUSES.has(b.status)) continue;
       const pids = (b.propertyIds ?? []).map((p: any) =>
         typeof p === 'string' ? p : (p._id || p.id || String(p))
       );
@@ -109,11 +110,39 @@ export function DashboardPage() {
     return set;
   }, [bookings, property1Id]);
 
-  const booked2Set = useMemo(() => {
+  const pending1Set = useMemo(() => {
+    if (!property1Id) return new Set<string>();
+    const set = new Set<string>();
+    for (const b of bookings) {
+      if (!PENDING_STATUSES.has(b.status)) continue;
+      const pids = (b.propertyIds ?? []).map((p: any) =>
+        typeof p === 'string' ? p : (p._id || p.id || String(p))
+      );
+      if (!pids.includes(property1Id)) continue;
+      generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
+    }
+    return set;
+  }, [bookings, property1Id]);
+
+  const confirmed2Set = useMemo(() => {
     if (!property2Id) return new Set<string>();
     const set = new Set<string>();
     for (const b of bookings) {
-      if (!BOOKED_STATUSES.has(b.status)) continue;
+      if (!CONFIRMED_STATUSES.has(b.status)) continue;
+      const pids = (b.propertyIds ?? []).map((p: any) =>
+        typeof p === 'string' ? p : (p._id || p.id || String(p))
+      );
+      if (!pids.includes(property2Id)) continue;
+      generateDateRange(b.checkIn, b.checkOut).forEach((d) => set.add(d));
+    }
+    return set;
+  }, [bookings, property2Id]);
+
+  const pending2Set = useMemo(() => {
+    if (!property2Id) return new Set<string>();
+    const set = new Set<string>();
+    for (const b of bookings) {
+      if (!PENDING_STATUSES.has(b.status)) continue;
       const pids = (b.propertyIds ?? []).map((p: any) =>
         typeof p === 'string' ? p : (p._id || p.id || String(p))
       );
@@ -125,17 +154,19 @@ export function DashboardPage() {
 
   const dateMap1 = useMemo(() => {
     const map: Record<string, CalendarDayInfo> = {};
-    booked1Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    confirmed1Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    pending1Set.forEach((d) => { map[d] = { status: 'pending' }; });
     blocked1Set.forEach((d) => { map[d] = { status: 'blocked' }; });
     return map;
-  }, [booked1Set, blocked1Set]);
+  }, [confirmed1Set, pending1Set, blocked1Set]);
 
   const dateMap2 = useMemo(() => {
     const map: Record<string, CalendarDayInfo> = {};
-    booked2Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    confirmed2Set.forEach((d) => { map[d] = { status: 'booked' }; });
+    pending2Set.forEach((d) => { map[d] = { status: 'pending' }; });
     blocked2Set.forEach((d) => { map[d] = { status: 'blocked' }; });
     return map;
-  }, [booked2Set, blocked2Set]);
+  }, [confirmed2Set, pending2Set, blocked2Set]);
 
   if (error) {
     return (
@@ -213,6 +244,8 @@ export function DashboardPage() {
               readOnly
               month={month}
               onMonthChange={setMonth}
+              showLegend
+              legendItems={['booked', 'pending', 'blocked', 'available']}
             />
           )}
           {property2Id && (
@@ -222,24 +255,10 @@ export function DashboardPage() {
               readOnly
               month={month}
               onMonthChange={setMonth}
+              showLegend
+              legendItems={['booked', 'pending', 'blocked', 'available']}
             />
           )}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap items-center gap-6 text-base text-gray-700">
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-5 w-5 rounded-md bg-green-100 border border-green-300" />
-            Booked
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-5 w-5 rounded-md bg-red-100 border border-red-300" />
-            Blocked / Maintenance
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-5 w-5 rounded-md bg-white border border-gray-200" />
-            Available
-          </span>
         </div>
       </div>
 

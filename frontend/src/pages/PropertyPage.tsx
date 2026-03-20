@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import { DayPicker } from 'react-day-picker';
 import { useProperty } from '@/hooks/useProperties';
 import { useAvailability } from '@/hooks/useAvailability';
 import { formatCurrency } from '@/utils/format-currency';
@@ -12,8 +10,8 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ImageSlideshow } from '@/components/ui/ImageSlideshow';
+import { BookingCalendar, type CalendarDayInfo } from '@/components/ui/BookingCalendar';
 import { PLACEHOLDER_IMAGES_NO_15, PLACEHOLDER_IMAGES_NO_14 } from '@/utils/placeholder-images';
-import type { DateRange } from 'react-day-picker';
 
 const RATE_PAISE = 4000000;
 const DEPOSIT_PAISE = 500000;
@@ -21,7 +19,8 @@ const DEPOSIT_PAISE = 500000;
 export function PropertyPage() {
   const { slug } = useParams<{ slug: string }>();
   const [month, setMonth] = useState(new Date());
-  const [range, setRange] = useState<DateRange | undefined>();
+  const [rangeStart, setRangeStart] = useState<string | null>(null);
+  const [rangeEnd, setRangeEnd] = useState<string | null>(null);
   const [guestCount, setGuestCount] = useState(2);
 
   const { data: property, isLoading: loadingProperty, error: propertyError } = useProperty(slug);
@@ -32,39 +31,37 @@ export function PropertyPage() {
     Boolean(property?._id)
   );
 
-  const { availableSet, pendingSet, bookedSet, blockedSet } = useMemo(() => {
-    const avail = new Set<string>();
-    const pending = new Set<string>();
-    const booked = new Set<string>();
-    const blocked = new Set<string>();
-
+  const dateMap = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
     if (availability?.dates) {
       for (const entry of availability.dates) {
         const key = entry.date.slice(0, 10);
-        if (entry.status === 'available') avail.add(key);
-        else if (entry.status === 'pending') pending.add(key);
-        else if (entry.status === 'blocked') blocked.add(key);
-        else booked.add(key);
+        map[key] = { status: entry.status as CalendarDayInfo['status'] };
       }
     } else if (availability?.available) {
-      availability.available.forEach((d) => avail.add(d.slice(0, 10)));
+      availability.available.forEach((d) => {
+        map[d.slice(0, 10)] = { status: 'available' };
+      });
     }
-
-    return { availableSet: avail, pendingSet: pending, bookedSet: booked, blockedSet: blocked };
+    return map;
   }, [availability]);
 
-  const disabledDays = useMemo(() => {
-    const hasStatusData = Boolean(availability?.dates);
-    return (date: Date) => {
-      const key = format(date, 'yyyy-MM-dd');
-      return hasStatusData
-        ? (bookedSet.has(key) || pendingSet.has(key) || blockedSet.has(key))
-        : !availableSet.has(key);
-    };
-  }, [availability?.dates, bookedSet, pendingSet, blockedSet, availableSet]);
+  const handleRangeSelect = (dateStr: string) => {
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(dateStr);
+      setRangeEnd(null);
+    } else if (dateStr > rangeStart) {
+      setRangeEnd(dateStr);
+    } else {
+      setRangeStart(dateStr);
+      setRangeEnd(null);
+    }
+  };
 
-  const nights = range?.from && range?.to
-    ? Math.max(0, Math.ceil((range.to.getTime() - range.from.getTime()) / (24 * 60 * 60 * 1000)))
+  const nights = rangeStart && rangeEnd
+    ? Math.max(0, Math.ceil(
+      (new Date(rangeEnd).getTime() - new Date(rangeStart).getTime()) / (24 * 60 * 60 * 1000)
+    ))
     : 0;
   const totalPaise = nights * RATE_PAISE + DEPOSIT_PAISE;
 
@@ -122,39 +119,18 @@ export function PropertyPage() {
                   <Skeleton className="mt-2 h-64 w-full" />
                 ) : (
                   <>
-                    <DayPicker
-                      mode="range"
-                      selected={range}
-                      onSelect={setRange}
-                      disabled={disabledDays}
+                    <BookingCalendar
+                      dateMap={dateMap}
                       month={month}
                       onMonthChange={setMonth}
-                      modifiers={{
-                        pending: (date) => pendingSet.has(format(date, 'yyyy-MM-dd')),
-                        booked: (date) => bookedSet.has(format(date, 'yyyy-MM-dd')) && !blockedSet.has(format(date, 'yyyy-MM-dd')),
-                        blocked: (date) => blockedSet.has(format(date, 'yyyy-MM-dd')),
-                      }}
-                      modifiersClassNames={{
-                        pending: 'bg-amber-100 text-amber-700',
-                        booked: 'bg-gray-200 text-gray-400',
-                        blocked: 'bg-red-100 text-red-400',
-                      }}
-                      className="mt-2 rounded-lg border border-gray-200 p-2"
+                      rangeMode
+                      rangeStart={rangeStart}
+                      rangeEnd={rangeEnd}
+                      onRangeSelect={handleRangeSelect}
+                      size="compact"
+                      showLegend
+                      legendItems={['booked', 'pending', 'blocked', 'range', 'available']}
                     />
-                    <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-full bg-amber-200 border border-amber-400" />
-                        Pending confirmation
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
-                        Booked
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-full bg-red-200 border border-red-300" />
-                        Maintenance / Unavailable
-                      </span>
-                    </div>
                   </>
                 )}
               </div>
@@ -180,7 +156,7 @@ export function PropertyPage() {
                 </div>
               )}
               <Link
-                to={`/book/${property.slug}${range?.from ? `?checkIn=${format(range.from, 'yyyy-MM-dd')}&checkOut=${range?.to ? format(range.to, 'yyyy-MM-dd') : format(range.from, 'yyyy-MM-dd')}&guests=${guestCount}` : ''}`}
+                to={`/book/${property.slug}${rangeStart ? `?checkIn=${rangeStart}&checkOut=${rangeEnd || rangeStart}&guests=${guestCount}` : ''}`}
               >
                 <Button variant="primary" className="mt-4 w-full" disabled={nights === 0}>
                   Proceed to Book

@@ -6,8 +6,6 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { useQuery } from '@tanstack/react-query';
-import { DayPicker } from 'react-day-picker';
-import type { DateRange } from 'react-day-picker';
 import { Plus, Trash2 } from 'lucide-react';
 import { useProperty, useProperties } from '@/hooks/useProperties';
 import { useAvailability } from '@/hooks/useAvailability';
@@ -22,6 +20,7 @@ import { Card } from '@/components/ui/Card';
 import { TermsAndConditions } from '@/components/booking/TermsAndConditions';
 import { DocumentUpload } from '@/components/ui/DocumentUpload';
 import { Spinner } from '@/components/ui/Spinner';
+import { BookingCalendar, type CalendarDayInfo } from '@/components/ui/BookingCalendar';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { CreateBookingRequest } from '@shared/types';
@@ -128,11 +127,8 @@ export function BookingPage() {
   const createBookingMutation = useBooking();
 
   const [bookingMonth, setBookingMonth] = useState(new Date());
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    urlCheckIn && urlCheckOut
-      ? { from: new Date(urlCheckIn), to: new Date(urlCheckOut) }
-      : undefined
-  );
+  const [rangeStart, setRangeStart] = useState<string | null>(urlCheckIn || null);
+  const [rangeEnd, setRangeEnd] = useState<string | null>(urlCheckOut || null);
 
   const { data: availability } = useAvailability(
     property?._id,
@@ -141,45 +137,31 @@ export function BookingPage() {
     Boolean(property?._id)
   );
 
-  const unavailableDates = useMemo(() => {
-    const blocked = new Set<string>();
+  const dateMap = useMemo(() => {
+    const map: Record<string, CalendarDayInfo> = {};
     if (availability?.dates) {
       for (const entry of availability.dates) {
-        if (entry.status !== 'available') blocked.add(entry.date.slice(0, 10));
+        map[entry.date.slice(0, 10)] = { status: entry.status as CalendarDayInfo['status'] };
       }
     } else if (availability?.available) {
-      const avail = new Set(availability.available.map((d: string) => d.slice(0, 10)));
-      const start = new Date(bookingMonth.getFullYear(), bookingMonth.getMonth(), 1);
-      const end = new Date(bookingMonth.getFullYear(), bookingMonth.getMonth() + 1, 0);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const key = format(new Date(d), 'yyyy-MM-dd');
-        if (!avail.has(key)) blocked.add(key);
-      }
+      availability.available.forEach((d: string) => {
+        map[d.slice(0, 10)] = { status: 'available' };
+      });
     }
-    return blocked;
-  }, [availability, bookingMonth]);
-
-  const pendingDates = useMemo(() => {
-    const pending = new Set<string>();
-    if (availability?.dates) {
-      for (const entry of availability.dates) {
-        if (entry.status === 'pending') pending.add(entry.date.slice(0, 10));
-      }
-    }
-    return pending;
+    return map;
   }, [availability]);
 
-  const bookedDates = useMemo(() => {
-    const booked = new Set<string>();
-    if (availability?.dates) {
-      for (const entry of availability.dates) {
-        if (entry.status === 'booked' || entry.status === 'blocked') {
-          booked.add(entry.date.slice(0, 10));
-        }
-      }
+  const handleRangeSelect = (dateStr: string) => {
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(dateStr);
+      setRangeEnd(null);
+    } else if (dateStr > rangeStart) {
+      setRangeEnd(dateStr);
+    } else {
+      setRangeStart(dateStr);
+      setRangeEnd(null);
     }
-    return booked;
-  }, [availability]);
+  };
 
   const { data: paymentInfo, isLoading: loadingPaymentInfo } = useQuery({
     queryKey: ['payment-info'],
@@ -237,13 +219,13 @@ export function BookingPage() {
   });
 
   useEffect(() => {
-    if (dateRange?.from) {
-      datesForm.setValue('checkIn', format(dateRange.from, 'yyyy-MM-dd'));
+    if (rangeStart) {
+      datesForm.setValue('checkIn', rangeStart);
     }
-    if (dateRange?.to) {
-      datesForm.setValue('checkOut', format(dateRange.to, 'yyyy-MM-dd'));
+    if (rangeEnd) {
+      datesForm.setValue('checkOut', rangeEnd);
     }
-  }, [dateRange, datesForm]);
+  }, [rangeStart, rangeEnd, datesForm]);
 
   /* ─── COMPUTED ─── */
 
@@ -597,56 +579,31 @@ export function BookingPage() {
               </p>
 
               <div className="mt-4 space-y-4">
-                <DayPicker
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
+                <BookingCalendar
+                  dateMap={dateMap}
                   month={bookingMonth}
                   onMonthChange={setBookingMonth}
-                  disabled={(date) => {
-                    const key = format(date, 'yyyy-MM-dd');
-                    if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
-                    return unavailableDates.has(key);
-                  }}
-                  modifiers={{
-                    pending: (date) => pendingDates.has(format(date, 'yyyy-MM-dd')),
-                    booked: (date) => bookedDates.has(format(date, 'yyyy-MM-dd')),
-                  }}
-                  modifiersClassNames={{
-                    pending: 'bg-amber-100 text-amber-700',
-                    booked: 'bg-gray-200 text-gray-400 line-through',
-                  }}
-                  fromMonth={new Date()}
-                  className="rounded-lg border border-gray-200 p-3"
+                  rangeMode
+                  rangeStart={rangeStart}
+                  rangeEnd={rangeEnd}
+                  onRangeSelect={handleRangeSelect}
+                  size="compact"
+                  showLegend
+                  legendItems={['booked', 'pending', 'blocked', 'range', 'available']}
                 />
-
-                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block h-3 w-3 rounded-full bg-amber-200 border border-amber-400" />
-                    Pending confirmation
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
-                    Booked / Blocked
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block h-3 w-3 rounded-full bg-blue-200 border border-blue-400" />
-                    Your selected range
-                  </span>
-                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Check-in</p>
                     <p className="mt-1 font-medium text-gray-900">
-                      {dateRange?.from ? format(dateRange.from, 'dd MMM yyyy') : 'Select date'}
+                      {rangeStart ? format(new Date(rangeStart), 'dd MMM yyyy') : 'Select date'}
                     </p>
                     <p className="text-xs text-gray-500">12:00 PM (Noon)</p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Check-out</p>
                     <p className="mt-1 font-medium text-gray-900">
-                      {dateRange?.to ? format(dateRange.to, 'dd MMM yyyy') : 'Select date'}
+                      {rangeEnd ? format(new Date(rangeEnd), 'dd MMM yyyy') : 'Select date'}
                     </p>
                     <p className="text-xs text-gray-500">10:00 AM</p>
                   </div>
@@ -721,7 +678,7 @@ export function BookingPage() {
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={!dateRange?.from || !dateRange?.to || nights === 0}
+                  disabled={!rangeStart || !rangeEnd || nights === 0}
                 >
                   Next
                 </Button>
