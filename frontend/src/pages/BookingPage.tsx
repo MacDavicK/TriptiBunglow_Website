@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { eachDayOfInterval, endOfMonth, format, startOfMonth } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
@@ -144,12 +144,18 @@ export function BookingPage() {
         map[entry.date.slice(0, 10)] = { status: entry.status as CalendarDayInfo['status'] };
       }
     } else if (availability?.available) {
-      availability.available.forEach((d: string) => {
-        map[d.slice(0, 10)] = { status: 'available' };
+      const availableSet = new Set(availability.available.map((d: string) => d.slice(0, 10)));
+      const daysInMonth = eachDayOfInterval({
+        start: startOfMonth(bookingMonth),
+        end: endOfMonth(bookingMonth),
+      });
+      daysInMonth.forEach((day) => {
+        const key = format(day, 'yyyy-MM-dd');
+        map[key] = { status: availableSet.has(key) ? 'available' : 'blocked' };
       });
     }
     return map;
-  }, [availability]);
+  }, [availability, bookingMonth]);
 
   const handleRangeSelect = (dateStr: string) => {
     if (!rangeStart || (rangeStart && rangeEnd)) {

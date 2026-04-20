@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { eachDayOfInterval, endOfMonth, format, startOfMonth } from 'date-fns';
 import { useProperty } from '@/hooks/useProperties';
 import { useAvailability } from '@/hooks/useAvailability';
 import { formatCurrency } from '@/utils/format-currency';
@@ -39,12 +40,18 @@ export function PropertyPage() {
         map[key] = { status: entry.status as CalendarDayInfo['status'] };
       }
     } else if (availability?.available) {
-      availability.available.forEach((d) => {
-        map[d.slice(0, 10)] = { status: 'available' };
+      const availableSet = new Set(availability.available.map((d) => d.slice(0, 10)));
+      const daysInMonth = eachDayOfInterval({
+        start: startOfMonth(month),
+        end: endOfMonth(month),
+      });
+      daysInMonth.forEach((day) => {
+        const key = format(day, 'yyyy-MM-dd');
+        map[key] = { status: availableSet.has(key) ? 'available' : 'blocked' };
       });
     }
     return map;
-  }, [availability]);
+  }, [availability, month]);
 
   const handleRangeSelect = (dateStr: string) => {
     if (!rangeStart || (rangeStart && rangeEnd)) {
